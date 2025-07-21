@@ -31,8 +31,8 @@ ENV PATH="${GOPATH}/bin:${PATH}"
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y nodejs
 
-# Install pnpm and webpack globally
-RUN npm install -g pnpm typescript ts-node webpack webpack-cli
+# Install pnpm globally
+RUN npm install -g pnpm typescript ts-node
 
 # Create non-root user for development
 RUN useradd -m -s /bin/bash developer \
@@ -44,6 +44,12 @@ RUN npm install -g @anthropic-ai/claude-code
 
 # Set working directory
 WORKDIR /workspace
+
+# Initialize npm in workspace and install webpack dependencies
+RUN npm init -y && \
+    npm install --save-dev webpack webpack-cli html-webpack-plugin
+
+# Switch to non-root user
 USER developer
 
 # Create shell alias for convenient dangerous Claude execution
