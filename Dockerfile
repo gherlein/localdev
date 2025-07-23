@@ -27,12 +27,16 @@ ENV PATH="/usr/local/go/bin:${PATH}"
 ENV GOPATH="/home/developer/go"
 ENV PATH="${GOPATH}/bin:${PATH}"
 
-# Install Node.js 20.x
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
-    && apt-get install -y nodejs
+# Install Node.js using n (Node version manager) directly
+RUN curl -L https://raw.githubusercontent.com/tj/n/master/bin/n -o /usr/local/bin/n \
+    && chmod +x /usr/local/bin/n \
+    && N_PREFIX=/usr/local n 14.7.0 \
+    && N_PREFIX=/usr/local n latest \
+    && N_PREFIX=/usr/local n 14.7.0
 
-# Install pnpm globally
-RUN npm install -g pnpm typescript ts-node
+# Install pnpm and webpack tools globally
+RUN npm install -g pnpm typescript ts-node webpack webpack-cli html-webpack-plugin
+
 
 # Create non-root user for development
 RUN useradd -m -s /bin/bash developer \
@@ -44,10 +48,6 @@ RUN npm install -g @anthropic-ai/claude-code
 
 # Set working directory
 WORKDIR /workspace
-
-# Initialize npm in workspace and install webpack dependencies
-RUN npm init -y && \
-    npm install --save-dev webpack webpack-cli html-webpack-plugin
 
 # Switch to non-root user
 USER developer
