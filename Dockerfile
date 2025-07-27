@@ -21,7 +21,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Go (latest stable)
-ARG GO_VERSION=1.21.5
+ARG GO_VERSION=1.23.4
 RUN curl -fsSL https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz | tar -C /usr/local -xzf -
 ENV PATH="/usr/local/go/bin:${PATH}"
 ENV GOPATH="/home/developer/go"
@@ -30,27 +30,29 @@ ENV PATH="${GOPATH}/bin:${PATH}"
 # Install Node.js using n (Node version manager) directly
 RUN curl -L https://raw.githubusercontent.com/tj/n/master/bin/n -o /usr/local/bin/n \
     && chmod +x /usr/local/bin/n \
-    && N_PREFIX=/usr/local n 14.7.0 \
-    && N_PREFIX=/usr/local n latest \
-    && N_PREFIX=/usr/local n 14.7.0
+    && N_PREFIX=/usr/local n latest
 
 # Install pnpm and webpack tools globally
 RUN npm install -g pnpm typescript ts-node webpack webpack-cli html-webpack-plugin
 
-
 # Create non-root user for development
 RUN useradd -m -s /bin/bash developer \
     && mkdir -p /home/developer/go/bin \
+    && mkdir -p /home/developer/.npm-global \
     && chown -R developer:developer /home/developer
 
-# Install Claude CLI
-RUN npm install -g @anthropic-ai/claude-code
+# Set npm global directory for the developer user
+ENV NPM_CONFIG_PREFIX=/home/developer/.npm-global
+ENV PATH="/home/developer/.npm-global/bin:${PATH}"
 
 # Set working directory
 WORKDIR /workspace
 
 # Switch to non-root user
 USER developer
+
+# Install Claude CLI as developer user
+RUN npm install -g @anthropic-ai/claude-code
 
 # Create shell alias for convenient dangerous Claude execution
 RUN echo 'alias clauded="claude --dangerously-skip-permissions"' >> /home/developer/.bashrc
