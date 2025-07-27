@@ -18,6 +18,7 @@ RUN apt-get update && apt-get install -y \
     jq \
     ripgrep \
     unzip \
+    dnsutils \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Go (latest stable)
@@ -44,6 +45,7 @@ RUN useradd -m -s /bin/bash developer \
 # Set npm global directory for the developer user
 ENV NPM_CONFIG_PREFIX=/home/developer/.npm-global
 ENV PATH="/home/developer/.npm-global/bin:${PATH}"
+
 
 # Set working directory
 WORKDIR /workspace

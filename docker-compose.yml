@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  claude-dev:
+    build: .
+    container_name: claude-localdev
+    volumes:
+      # Mount workspace directory
+      - ./workspace:/workspace
+    # Network mode: isolated but with localhost access
+    network_mode: bridge
+    stdin_open: true
+    tty: true
