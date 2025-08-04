@@ -1,4 +1,4 @@
-# Claude Code Dangerous Development Container
+# Isolated Development Container
 
 A containerized development environment for safely using Claude Code CLI in "dangerous mode" for Go and TypeScript/Node.js development.
 
@@ -27,13 +27,15 @@ This Docker container provides an isolated environment where Claude Code can ope
 docker build -t claude-dangerous-dev .
 ```
 
+You can also 'make build' instead.
+
 ### Run with Local Project Mount
 ```bash
 # Mount your current project directory
-docker run -it --rm -v $(pwd):/workspace claude-dangerous-dev
+docker run -it --rm -v $(pwd):/workspace localdev bash
 
 # Or mount a specific project directory
-docker run -it --rm -v /path/to/your/project:/workspace claude-dangerous-dev
+docker run -it --rm -v /path/to/your/project:/workspace localdev bash
 ```
 
 ### Using Claude in Dangerous Mode

@@ -1,5 +1,0 @@
-build:
-	docker build -t clauded:latest .
-
-run:
-	docker run --rm -it -v "$(pwd):/workspace" clauded bash
