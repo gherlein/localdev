@@ -5,7 +5,13 @@ RUN apt-get update && apt-get install -y \
     curl \
     git \
     unzip \
+    build-essential \
     && rm -rf /var/lib/apt/lists/*
+
+# Install Node.js (required for Claude Code)
+RUN curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - && \
+    apt-get install -y nodejs && \
+    rm -rf /var/lib/apt/lists/*
 
 # Install GitHub CLI
 RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg && \
@@ -22,6 +28,17 @@ RUN mkdir -p /etc/apt/keyrings && \
     apt-get update && \
     apt-get install -y acli && \
     rm -rf /var/lib/apt/lists/*
+
+# Install Claude Code
+RUN npm install -g @anthropic-ai/claude-code
+
+# Create non-root user for development (optional but recommended)
+RUN useradd -m -s /bin/bash developer && \
+    mkdir -p /home/developer/.npm-global && \
+    chown -R developer:developer /home/developer
+
+# Create shell alias for convenient dangerous Claude execution
+RUN echo 'alias clauded="claude --dangerously-skip-permissions"' >> /etc/bash.bashrc
 
 WORKDIR /workspace
 
