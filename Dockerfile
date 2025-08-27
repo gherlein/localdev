@@ -1,4 +1,4 @@
-FROM eclipse-temurin:17-jdk
+FROM docker.io/eclipse-temurin:17-jdk
 
 # Install dependencies
 RUN apt-get update && apt-get install -y \
@@ -37,7 +37,7 @@ RUN case "${TARGETARCH}" in \
     "arm64") GOARCH=arm64 ;; \
     *) echo "Unsupported architecture: ${TARGETARCH}" && exit 1 ;; \
     esac && \
-    curl -fsSL https://dl.google.com/go/go${GO_VERSION}.linux-${GOARCH}.tar.gz | tar -xzC /usr/local
+    curl -fsSL https://dl.google.com/go/go${GO_VERSION}.linux-${GOARCH}.tar.gz | tar --no-same-permissions --no-same-owner -xzC /usr/local
 
 # Set Go environment variables
 ENV GOROOT=/usr/local/go
