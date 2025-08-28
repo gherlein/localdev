@@ -6,10 +6,9 @@ A containerized development environment for safely using Claude Code CLI in "dan
 
 This Docker container provides an isolated environment where Claude Code can operate with elevated permissions (`--dangerously-skip-permissions`) without compromising your host system. It's designed for:
 
-- Go development (v1.21.5)
+- Go development (v1.25.0)
 - TypeScript/Node.js development (Node.js 20.x)
 - Safe execution of Claude's file system operations
-- Development workflows requiring broader file access
 
 ## Features
 
@@ -20,19 +19,24 @@ This Docker container provides an isolated environment where Claude Code can ope
 - **Development tools**: git, ripgrep, jq, vim, nano, tree
 - **Non-root user** for security best practices
 
-## Usage
+## Prerequisites
+
+To be compatible with the widest variety of users, we chose podman over Docker (license issues).  You will need:
+
+* [podman](https://podman.io/docs/installation)
 
 ### Build the Container
 ```bash
-docker build -t claude-dangerous-dev .
+make
 ```
-
-You can also 'make build' instead.
 
 ### Run with Local Project Mount
 ```bash
 # Mount your current project directory
 docker run -it --rm -v $(pwd):/workspace localdev bash
+
+# or just use make
+make run
 
 # Or mount a specific project directory
 docker run -it --rm -v /path/to/your/project:/workspace localdev bash
@@ -41,8 +45,8 @@ docker run -it --rm -v /path/to/your/project:/workspace localdev bash
 ### Using Claude in Dangerous Mode
 Once inside the container:
 ```bash
-# Use the convenient alias
-clauded
+# Use the convenient alias 
+clauded 
 
 # Or run directly
 claude --dangerously-skip-permissions
@@ -54,13 +58,6 @@ claude --dangerously-skip-permissions
 - **Limited Scope**: Only your mounted project directory is accessible
 - **Non-root**: Development happens as the `developer` user
 - **Temporary**: Use `--rm` flag to automatically clean up containers
-
-## Development Workflow
-
-1. Mount your Go or TypeScript project into `/workspace`
-2. Use `clauded` to start Claude with dangerous permissions
-3. Claude can freely read/write within the mounted project directory
-4. Exit and remove container when done
 
 ## Supported Languages
 
