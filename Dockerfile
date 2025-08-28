@@ -6,6 +6,10 @@ RUN apt-get update && apt-get install -y \
     git \
     unzip \
     build-essential \
+    squashfs-tools \
+    zip \
+    file \
+    xxd \
     libpcap-dev && rm -rf /var/lib/apt/lists/*
 
 # Install Node.js (required for Claude Code)
@@ -30,8 +34,9 @@ RUN mkdir -p /etc/apt/keyrings && \
     rm -rf /var/lib/apt/lists/*
 
 # Install Go
-ARG GO_VERSION=1.22.5
+ARG GO_VERSION=1.25.0
 ARG TARGETARCH
+RUN echo "TARGETARCH: ${TARGETARCH}"
 RUN case "${TARGETARCH}" in \
     "amd64") GOARCH=amd64 ;; \
     "arm64") GOARCH=arm64 ;; \
