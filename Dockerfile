@@ -10,6 +10,9 @@ RUN apt-get update && apt-get install -y \
     zip \
     file \
     xxd \
+    ffmpeg \
+    qpdf \
+    imagemagick \
     libpcap-dev && rm -rf /var/lib/apt/lists/*
 
 # Install Node.js (required for Claude Code)
