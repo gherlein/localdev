@@ -55,8 +55,19 @@ ENV PATH="${GOROOT}/bin:${GOPATH}/bin:${PATH}"
 # Install Claude Code
 RUN npm install -g @anthropic-ai/claude-code
 
-# Create non-root user for development
-RUN useradd -m -s /bin/bash developer && \
+# Create non-root user for development with configurable UID/GID
+ARG USER_UID=1000
+ARG USER_GID=1000
+RUN if ! getent group $USER_GID > /dev/null 2>&1; then \
+        groupadd --gid $USER_GID developer; \
+    else \
+        groupadd developer; \
+    fi && \
+    if ! getent passwd $USER_UID > /dev/null 2>&1; then \
+        useradd --uid $USER_UID --gid developer -m -s /bin/bash developer; \
+    else \
+        useradd --gid developer -m -s /bin/bash developer; \
+    fi && \
     mkdir -p /home/developer/.npm-global && \
     mkdir -p /home/developer/go/{bin,src,pkg} && \
     chown -R developer:developer /home/developer
