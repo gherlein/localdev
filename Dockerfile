@@ -2,6 +2,7 @@ FROM docker.io/eclipse-temurin:17-jdk
 
 # Install dependencies
 RUN apt-get update && apt-get install -y \
+    sudo \
     curl \
     git \
     unzip \
@@ -82,22 +83,36 @@ ENV PATH="/home/developer/.npm-global/bin:${PATH}"
 
 WORKDIR /workspace
 
+# Create entrypoint script to fix ownership
+RUN echo '#!/bin/bash' > /usr/local/bin/fix-ownership.sh && \
+    echo 'sudo chown -R developer:developer /workspace 2>/dev/null || true' >> /usr/local/bin/fix-ownership.sh && \
+    echo 'exec "$@"' >> /usr/local/bin/fix-ownership.sh && \
+    chmod +x /usr/local/bin/fix-ownership.sh
+
+# Give developer user sudo access without password for chown
+RUN echo 'developer ALL=(root) NOPASSWD: /bin/chown' >> /etc/sudoers
+
 # Switch to non-root user
 USER developer
 
-# Install Go development tools and linters
+# Install Go development tools and linters (split into groups for better reliability)
 RUN go install golang.org/x/tools/cmd/goimports@latest && \
-    go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest && \
-    go install honnef.co/go/tools/cmd/staticcheck@latest && \
-    go install github.com/go-delve/delve/cmd/dlv@latest && \
     go install golang.org/x/tools/cmd/godoc@latest && \
-    go install github.com/fatih/gomodifytags@latest && \
-    go install github.com/josharian/impl@latest && \
-    go install github.com/cweill/gotests/gotests@latest && \
     go install mvdan.cc/gofumpt@latest && \
-    go install github.com/segmentio/golines@latest && \
-    go install github.com/google/wire/cmd/wire@latest && \
-    go install github.com/golang/mock/mockgen@latest && \
     go install golang.org/x/vuln/cmd/govulncheck@latest
 
+RUN go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest && \
+    go install honnef.co/go/tools/cmd/staticcheck@latest && \
+    go install github.com/go-delve/delve/cmd/dlv@latest
+
+RUN go install github.com/fatih/gomodifytags@latest && \
+    go install github.com/josharian/impl@latest && \
+    go install github.com/cweill/gotests/gotests@latest && \
+    go install github.com/google/wire/cmd/wire@latest
+
+# Install remaining tools (skip problematic ones if they fail)
+RUN go install github.com/segmentio/golines@latest || echo "Warning: Failed to install golines" && \
+    go install github.com/golang/mock/mockgen@latest || echo "Warning: Failed to install mockgen"
+
+ENTRYPOINT ["/usr/local/bin/fix-ownership.sh"]
 CMD ["/bin/bash"]
