@@ -50,50 +50,37 @@ RUN case "${TARGETARCH}" in \
 
 # Set Go environment variables
 ENV GOROOT=/usr/local/go
-ENV GOPATH=/home/developer/go
+ENV GOPATH=/home/ubuntu/go
 ENV PATH="${GOROOT}/bin:${GOPATH}/bin:${PATH}"
 
 # Install Claude Code
 RUN npm install -g @anthropic-ai/claude-code
 
-# Create non-root user for development with configurable UID/GID
-ARG USER_UID=1000
-ARG USER_GID=1000
-RUN if ! getent group $USER_GID > /dev/null 2>&1; then \
-        groupadd --gid $USER_GID developer; \
-    else \
-        groupadd developer; \
-    fi && \
-    if ! getent passwd $USER_UID > /dev/null 2>&1; then \
-        useradd --uid $USER_UID --gid developer -m -s /bin/bash developer; \
-    else \
-        useradd --gid developer -m -s /bin/bash developer; \
-    fi && \
-    mkdir -p /home/developer/.npm-global && \
-    mkdir -p /home/developer/go/{bin,src,pkg} && \
-    chown -R developer:developer /home/developer
+RUN mkdir -p /home/ubuntu/.npm-global && \
+    mkdir -p /home/ubuntu/go/{bin,src,pkg} && \
+    chown -R ubuntu:ubuntu /home/ubuntu
 
 # Create shell alias for convenient dangerous Claude execution for all users
 RUN echo 'alias clauded="claude --dangerously-skip-permissions"' >> /etc/bash.bashrc && \
-    echo 'alias clauded="claude --dangerously-skip-permissions"' >> /home/developer/.bashrc
+    echo 'alias clauded="claude --dangerously-skip-permissions"' >> /home/ubuntu/.bashrc
 
-# Set npm global directory for the developer user
-ENV NPM_CONFIG_PREFIX=/home/developer/.npm-global
-ENV PATH="/home/developer/.npm-global/bin:${PATH}"
+# Set npm global directory for the ubuntu user
+ENV NPM_CONFIG_PREFIX=/home/ubuntu/.npm-global
+ENV PATH="/home/ubuntu/.npm-global/bin:${PATH}"
 
 WORKDIR /workspace
 
 # Create entrypoint script to fix ownership
 RUN echo '#!/bin/bash' > /usr/local/bin/fix-ownership.sh && \
-    echo 'sudo chown -R developer:developer /workspace 2>/dev/null || true' >> /usr/local/bin/fix-ownership.sh && \
+    echo 'sudo chown -R ubuntu:ubuntu /workspace 2>/dev/null || true' >> /usr/local/bin/fix-ownership.sh && \
     echo 'exec "$@"' >> /usr/local/bin/fix-ownership.sh && \
     chmod +x /usr/local/bin/fix-ownership.sh
 
-# Give developer user sudo access without password for chown
-RUN echo 'developer ALL=(root) NOPASSWD: /bin/chown' >> /etc/sudoers
+# Give ubuntu user sudo access without password for chown
+RUN echo 'ubuntu ALL=(root) NOPASSWD: /bin/chown' >> /etc/sudoers
 
 # Switch to non-root user
-USER developer
+USER ubuntu
 
 # Install Go development tools and linters (split into groups for better reliability)
 RUN go install golang.org/x/tools/cmd/goimports@latest && \
