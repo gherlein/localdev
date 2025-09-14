@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  localdev:
+    build: .
+    volumes:
+      - .:/workspace
+    environment:
+      # Pass your host user's UID and GID to the container
+      - HOST_UID=${UID:-1000}
+      - HOST_GID=${GID:-1000}
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
+    user: "${UID:-1000}:${GID:-1000}"

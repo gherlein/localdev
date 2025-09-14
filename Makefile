@@ -25,3 +25,6 @@ no-cache:
 
 run:
 	podman run --rm -it -v "$(shell pwd):/workspace" localdev bash
+
+pre:
+	sudo apt-get -y install podman

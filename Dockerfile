@@ -14,7 +14,8 @@ RUN apt-get update && apt-get install -y \
     ffmpeg \
     qpdf \
     imagemagick \
-    libpcap-dev && rm -rf /var/lib/apt/lists/*
+    libpcap-dev \
+    gosu && rm -rf /var/lib/apt/lists/*
 
 # Install Node.js (required for Claude Code)
 RUN curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - && \
@@ -50,37 +51,35 @@ RUN case "${TARGETARCH}" in \
 
 # Set Go environment variables
 ENV GOROOT=/usr/local/go
-ENV GOPATH=/home/ubuntu/go
+ENV GOPATH=/home/developer/go
 ENV PATH="${GOROOT}/bin:${GOPATH}/bin:${PATH}"
+
+# Create a new user with UID/GID 1000 to match host user
+# Handle case where GID 1000 already exists
+RUN (groupadd -g 1000 developer 2>/dev/null || groupmod -n developer $(getent group 1000 | cut -d: -f1)) && \
+    (useradd -m -u 1000 -g 1000 -s /bin/bash developer 2>/dev/null || \
+     usermod -l developer -d /home/developer -m $(getent passwd 1000 | cut -d: -f1) 2>/dev/null || true) && \
+    echo 'developer ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
+
+# Fix permissions for developer user
+RUN mkdir -p /home/developer/.npm-global && \
+    mkdir -p /home/developer/go/{bin,src,pkg} && \
+    chown -R 1000:1000 /home/developer
 
 # Install Claude Code
 RUN npm install -g @anthropic-ai/claude-code
 
-RUN mkdir -p /home/ubuntu/.npm-global && \
-    mkdir -p /home/ubuntu/go/{bin,src,pkg} && \
-    chown -R ubuntu:ubuntu /home/ubuntu
-
 # Create shell alias for convenient dangerous Claude execution for all users
-RUN echo 'alias clauded="claude --dangerously-skip-permissions"' >> /etc/bash.bashrc && \
-    echo 'alias clauded="claude --dangerously-skip-permissions"' >> /home/ubuntu/.bashrc
+RUN echo 'alias clauded="claude --dangerously-skip-permissions"' >> /etc/bash.bashrc
 
-# Set npm global directory for the ubuntu user
-ENV NPM_CONFIG_PREFIX=/home/ubuntu/.npm-global
-ENV PATH="/home/ubuntu/.npm-global/bin:${PATH}"
+# Set npm global directory for the developer user
+ENV NPM_CONFIG_PREFIX=/home/developer/.npm-global
+ENV PATH="/home/developer/.npm-global/bin:${PATH}"
 
 WORKDIR /workspace
 
-# Create entrypoint script to fix ownership
-RUN echo '#!/bin/bash' > /usr/local/bin/fix-ownership.sh && \
-    echo 'sudo chown -R ubuntu:ubuntu /workspace 2>/dev/null || true' >> /usr/local/bin/fix-ownership.sh && \
-    echo 'exec "$@"' >> /usr/local/bin/fix-ownership.sh && \
-    chmod +x /usr/local/bin/fix-ownership.sh
-
-# Give ubuntu user sudo access without password for chown
-RUN echo 'ubuntu ALL=(root) NOPASSWD: /bin/chown' >> /etc/sudoers
-
-# Switch to non-root user
-USER ubuntu
+# Switch to developer user
+USER developer
 
 # Install Go development tools and linters (split into groups for better reliability)
 RUN go install golang.org/x/tools/cmd/goimports@latest && \
@@ -101,5 +100,4 @@ RUN go install github.com/fatih/gomodifytags@latest && \
 RUN go install github.com/segmentio/golines@latest || echo "Warning: Failed to install golines" && \
     go install github.com/golang/mock/mockgen@latest || echo "Warning: Failed to install mockgen"
 
-ENTRYPOINT ["/usr/local/bin/fix-ownership.sh"]
 CMD ["/bin/bash"]
