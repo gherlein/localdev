@@ -22,6 +22,29 @@ RUN curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - && \
     apt-get install -y nodejs && \
     rm -rf /var/lib/apt/lists/*
 
+# Install Podman
+RUN apt-get update && apt-get install -y \
+    podman \
+    uidmap \
+    fuse-overlayfs \
+    slirp4netns && \
+    rm -rf /var/lib/apt/lists/*
+
+# Configure Podman for rootless operation
+RUN mkdir -p /etc/containers && \
+    echo '[containers]' > /etc/containers/containers.conf && \
+    echo 'netns="host"' >> /etc/containers/containers.conf && \
+    echo 'userns="host"' >> /etc/containers/containers.conf && \
+    echo 'ipcns="host"' >> /etc/containers/containers.conf && \
+    echo 'utsns="host"' >> /etc/containers/containers.conf && \
+    echo 'cgroupns="host"' >> /etc/containers/containers.conf && \
+    echo 'cgroups="disabled"' >> /etc/containers/containers.conf && \
+    echo 'devices="/dev/null"' >> /etc/containers/containers.conf && \
+    echo '[engine]' >> /etc/containers/containers.conf && \
+    echo 'cgroup_manager="cgroupfs"' >> /etc/containers/containers.conf && \
+    echo 'events_logger="file"' >> /etc/containers/containers.conf && \
+    echo 'runtime="crun"' >> /etc/containers/containers.conf
+
 # Install GitHub CLI
 RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg && \
     chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg && \
@@ -112,5 +135,9 @@ RUN go install github.com/fatih/gomodifytags@latest && \
 # Install remaining tools (skip problematic ones if they fail)
 RUN go install github.com/segmentio/golines@latest || echo "Warning: Failed to install golines" && \
     go install github.com/golang/mock/mockgen@latest || echo "Warning: Failed to install mockgen"
+
+# Copy and run NATS installation script
+COPY --chmod=755 install-nats.sh /tmp/install-nats.sh
+RUN /tmp/install-nats.sh && rm -f /tmp/install-nats.sh || true
 
 CMD ["/bin/bash"]
