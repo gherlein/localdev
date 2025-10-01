@@ -97,6 +97,8 @@ RUN npm install -g @github/copilot
 
 # Create shell alias for convenient dangerous Claude execution for all users
 RUN echo 'alias clauded="claude --dangerously-skip-permissions"' >> /etc/bash.bashrc
+# Repeat for copilot
+RUN echo 'alias copilotd="claude --allow-all-tools"' >> /etc/bash.bashrc
 
 # Set npm global directory for the developer user
 ENV NPM_CONFIG_PREFIX=/home/developer/.npm-global
