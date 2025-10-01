@@ -58,7 +58,7 @@ ENV PATH="${GOROOT}/bin:${GOPATH}/bin:${PATH}"
 # Handle case where GID 1000 already exists
 RUN (groupadd -g 1000 developer 2>/dev/null || groupmod -n developer $(getent group 1000 | cut -d: -f1)) && \
     (useradd -m -u 1000 -g 1000 -s /bin/bash developer 2>/dev/null || \
-     usermod -l developer -d /home/developer -m $(getent passwd 1000 | cut -d: -f1) 2>/dev/null || true) && \
+    usermod -l developer -d /home/developer -m $(getent passwd 1000 | cut -d: -f1) 2>/dev/null || true) && \
     echo 'developer ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
 
 # Fix permissions for developer user
@@ -68,6 +68,9 @@ RUN mkdir -p /home/developer/.npm-global && \
 
 # Install Claude Code
 RUN npm install -g @anthropic-ai/claude-code
+
+# Install GitHub Copilot CLI
+RUN npm install -g @github/copilot
 
 # Create shell alias for convenient dangerous Claude execution for all users
 RUN echo 'alias clauded="claude --dangerously-skip-permissions"' >> /etc/bash.bashrc
