@@ -15,6 +15,7 @@ RUN apt-get update && apt-get install -y \
     qpdf \
     imagemagick \
     libpcap-dev \
+    jq \
     gosu && rm -rf /var/lib/apt/lists/*
 
 # Install Node.js (required for Claude Code)
