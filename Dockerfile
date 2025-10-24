@@ -16,7 +16,9 @@ RUN apt-get update && apt-get install -y \
     imagemagick \
     libpcap-dev \
     jq \
-    gosu && rm -rf /var/lib/apt/lists/*
+    gosu \
+    python3 \
+    python3-pip && rm -rf /var/lib/apt/lists/*
 
 # Install Node.js (required for Claude Code)
 RUN curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - && \
@@ -93,6 +95,19 @@ RUN mkdir -p /home/developer/.npm-global && \
 # Install Claude Code
 RUN npm install -g @anthropic-ai/claude-code
 
+# Install PDF tools
+RUN npm i -g md-to-pdf
+RUN npm i -g pdf2md
+
+# Install Homebrew
+RUN /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# Add Homebrew to PATH
+ENV PATH="/home/linuxbrew/.linuxbrew/bin:${PATH}"
+
+# install Marp CLI
+RUN brew install marp-cli
+
 # Install GitHub Copilot CLI
 RUN npm install -g @github/copilot
 
@@ -109,6 +124,13 @@ WORKDIR /workspace
 
 # Switch to developer user
 USER developer
+
+# install uv
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Install md2pdf
+RUN /home/developer/.local/bin/uv tool install md2pdf
+
 
 # Install zig
 RUN curl -fsSL https://ziglang.org/download/0.13.0/zig-linux-x86_64-0.13.0.tar.xz -o zig.tar.xz && \
