@@ -99,6 +99,9 @@ RUN npm install -g @anthropic-ai/claude-code
 RUN npm i -g md-to-pdf
 RUN npm i -g pdf2md
 
+# install mermaid tools
+RUN npm install -g @mermaid-js/mermaid-cli
+
 # Install Homebrew
 RUN /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
@@ -106,7 +109,7 @@ RUN /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/instal
 ENV PATH="/home/linuxbrew/.linuxbrew/bin:${PATH}"
 
 # install Marp CLI
-RUN brew install marp-cli
+#RUN brew install marp-cli
 
 # Install GitHub Copilot CLI
 RUN npm install -g @github/copilot
@@ -125,8 +128,14 @@ WORKDIR /workspace
 # Switch to developer user
 USER developer
 
-# install uv
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+# install uv with retry logic
+RUN for i in 1 2 3; do \
+    curl -LsSf https://astral.sh/uv/install.sh | sh && break || \
+    (echo "Attempt $i failed, retrying..." && sleep 5); \
+    done
+
+# Add uv to PATH
+ENV PATH="/home/developer/.local/bin:${PATH}"
 
 # Install md2pdf
 RUN /home/developer/.local/bin/uv tool install md2pdf
