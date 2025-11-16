@@ -18,12 +18,24 @@ RUN apt-get update && apt-get install -y \
     jq \
     gosu \
     python3 \
-    python3-pip && rm -rf /var/lib/apt/lists/*
+    python3-pip \
+    tree && rm -rf /var/lib/apt/lists/*
 
-# Install Node.js (required for Claude Code)
-RUN curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - && \
-    apt-get install -y nodejs && \
-    rm -rf /var/lib/apt/lists/*
+# Install Node.js using nvm to support multiple versions
+ENV NVM_DIR=/usr/local/nvm
+ENV NODE_VERSION_14=14.16.0
+ENV NODE_VERSION_LTS=lts/*
+
+RUN mkdir -p $NVM_DIR && \
+    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash && \
+    . $NVM_DIR/nvm.sh && \
+    nvm install $NODE_VERSION_14 && \
+    nvm install $NODE_VERSION_LTS && \
+    nvm alias default $NODE_VERSION_LTS && \
+    nvm use default
+
+# Add nvm to PATH for all users
+ENV PATH="$NVM_DIR/versions/node/$(ls $NVM_DIR/versions/node | tail -1)/bin:${PATH}"
 
 # Install Podman
 RUN apt-get update && apt-get install -y \
@@ -92,15 +104,50 @@ RUN mkdir -p /home/developer/.npm-global && \
     mkdir -p /home/developer/go/{bin,src,pkg} && \
     chown -R 1000:1000 /home/developer
 
-# Install Claude Code
-RUN npm install -g @anthropic-ai/claude-code
+# Install npm tools in small batches to avoid OOM (exit 137)
+# Batch 1: Essential tools
+RUN NODE_OPTIONS="--max-old-space-size=8192" npm install -g \
+    @anthropic-ai/claude-code \
+    typescript \
+    ts-node && \
+    npm cache clean --force
 
-# Install PDF tools
-RUN npm i -g md-to-pdf
-RUN npm i -g pdf2md
+# Batch 2: Build tools
+RUN NODE_OPTIONS="--max-old-space-size=8192" npm install -g \
+    webpack \
+    webpack-cli \
+    webpack-dev-server \
+    esbuild && \
+    npm cache clean --force
 
-# install mermaid tools
-RUN npm install -g @mermaid-js/mermaid-cli
+# Batch 3: Development tools
+RUN NODE_OPTIONS="--max-old-space-size=8192" npm install -g \
+    nodemon \
+    npm-check-updates \
+    pnpm && \
+    npm cache clean --force
+
+# Batch 4: Code quality tools
+RUN NODE_OPTIONS="--max-old-space-size=8192" npm install -g \
+    eslint \
+    prettier && \
+    npm cache clean --force
+
+# Batch 5: Testing tools (split to avoid OOM)
+RUN NODE_OPTIONS="--max-old-space-size=4096" npm install -g \
+    jest && \
+    npm cache clean --force
+
+RUN NODE_OPTIONS="--max-old-space-size=4096" npm install -g \
+    vitest && \
+    npm cache clean --force
+
+# Batch 6: PDF and other tools
+RUN NODE_OPTIONS="--max-old-space-size=8192" npm install -g \
+    md-to-pdf \
+    pdf2md \
+    @github/copilot && \
+    npm cache clean --force
 
 # Install Homebrew
 RUN /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
@@ -109,10 +156,20 @@ RUN /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/instal
 ENV PATH="/home/linuxbrew/.linuxbrew/bin:${PATH}"
 
 # install Marp CLI
-#RUN brew install marp-cli
+RUN brew install marp-cli
 
-# Install GitHub Copilot CLI
-RUN npm install -g @github/copilot
+# Install memory-heavy mermaid-cli separately with increased memory limit
+# and retry logic in case of OOM
+RUN NODE_OPTIONS="--max-old-space-size=4096" npm install -g @mermaid-js/mermaid-cli || \
+    (echo "First attempt failed, cleaning cache and retrying..." && \
+    npm cache clean --force && \
+    NODE_OPTIONS="--max-old-space-size=4096" npm install -g @mermaid-js/mermaid-cli) || \
+    echo "Warning: Failed to install mermaid-cli (requires more memory)"
+
+# Setup nvm in bash for all users
+RUN echo 'export NVM_DIR=/usr/local/nvm' >> /etc/bash.bashrc && \
+    echo '[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"' >> /etc/bash.bashrc && \
+    echo '[ -s "$NVM_DIR/bash_completion" ] && . "$NVM_DIR/bash_completion"' >> /etc/bash.bashrc
 
 # Create shell alias for convenient dangerous Claude execution for all users
 RUN echo 'alias clauded="claude --dangerously-skip-permissions"' >> /etc/bash.bashrc

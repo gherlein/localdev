@@ -17,11 +17,11 @@ ifeq ($(ARCH),arm64)
 endif
 
 all:
-	podman build -t localdev:latest --build-arg TARGETARCH=${TARGETARCH} --pull .
+	podman build -t localdev:latest --memory=16g --build-arg TARGETARCH=${TARGETARCH} --pull .
 
 
 no-cache:
-	podman build -t localdev:latest --no-cache --build-arg TARGETARCH=${TARGETARCH} --pull .
+	podman build -t localdev:latest --no-cache --memory=16g --build-arg TARGETARCH=${TARGETARCH} --pull .
 
 run:
 	podman run --rm -it -v "$(shell pwd):/workspace" localdev bash
