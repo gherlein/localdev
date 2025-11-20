@@ -34,8 +34,13 @@ RUN mkdir -p $NVM_DIR && \
     nvm alias default $NODE_VERSION_LTS && \
     nvm use default
 
-# Add nvm to PATH for all users
-ENV PATH="$NVM_DIR/versions/node/$(ls $NVM_DIR/versions/node | tail -1)/bin:${PATH}"
+# Add nvm to PATH - source nvm in subsequent RUN commands
+ENV NODE_PATH="$NVM_DIR/versions/node"
+SHELL ["/bin/bash", "-c"]
+
+# Set PATH to include the default Node.js version installed by nvm
+RUN . $NVM_DIR/nvm.sh && \
+    echo "export PATH=\"$NVM_DIR/versions/node/$(nvm version default)/bin:\$PATH\"" >> /etc/environment
 
 # Install Podman
 RUN apt-get update && apt-get install -y \
@@ -106,14 +111,16 @@ RUN mkdir -p /home/developer/.npm-global && \
 
 # Install npm tools in small batches to avoid OOM (exit 137)
 # Batch 1: Essential tools
-RUN NODE_OPTIONS="--max-old-space-size=8192" npm install -g \
+RUN . $NVM_DIR/nvm.sh && \
+    NODE_OPTIONS="--max-old-space-size=8192" npm install -g \
     @anthropic-ai/claude-code \
     typescript \
     ts-node && \
     npm cache clean --force
 
 # Batch 2: Build tools
-RUN NODE_OPTIONS="--max-old-space-size=8192" npm install -g \
+RUN . $NVM_DIR/nvm.sh && \
+    NODE_OPTIONS="--max-old-space-size=8192" npm install -g \
     webpack \
     webpack-cli \
     webpack-dev-server \
@@ -121,29 +128,34 @@ RUN NODE_OPTIONS="--max-old-space-size=8192" npm install -g \
     npm cache clean --force
 
 # Batch 3: Development tools
-RUN NODE_OPTIONS="--max-old-space-size=8192" npm install -g \
+RUN . $NVM_DIR/nvm.sh && \
+    NODE_OPTIONS="--max-old-space-size=8192" npm install -g \
     nodemon \
     npm-check-updates \
     pnpm && \
     npm cache clean --force
 
 # Batch 4: Code quality tools
-RUN NODE_OPTIONS="--max-old-space-size=8192" npm install -g \
+RUN . $NVM_DIR/nvm.sh && \
+    NODE_OPTIONS="--max-old-space-size=8192" npm install -g \
     eslint \
     prettier && \
     npm cache clean --force
 
 # Batch 5: Testing tools (split to avoid OOM)
-RUN NODE_OPTIONS="--max-old-space-size=4096" npm install -g \
+RUN . $NVM_DIR/nvm.sh && \
+    NODE_OPTIONS="--max-old-space-size=4096" npm install -g \
     jest && \
     npm cache clean --force
 
-RUN NODE_OPTIONS="--max-old-space-size=4096" npm install -g \
+RUN . $NVM_DIR/nvm.sh && \
+    NODE_OPTIONS="--max-old-space-size=4096" npm install -g \
     vitest && \
     npm cache clean --force
 
 # Batch 6: PDF and other tools
-RUN NODE_OPTIONS="--max-old-space-size=8192" npm install -g \
+RUN . $NVM_DIR/nvm.sh && \
+    NODE_OPTIONS="--max-old-space-size=8192" npm install -g \
     md-to-pdf \
     pdf2md \
     @github/copilot && \
@@ -160,7 +172,8 @@ RUN brew install marp-cli
 
 # Install memory-heavy mermaid-cli separately with increased memory limit
 # and retry logic in case of OOM
-RUN NODE_OPTIONS="--max-old-space-size=4096" npm install -g @mermaid-js/mermaid-cli || \
+RUN . $NVM_DIR/nvm.sh && \
+    NODE_OPTIONS="--max-old-space-size=4096" npm install -g @mermaid-js/mermaid-cli || \
     (echo "First attempt failed, cleaning cache and retrying..." && \
     npm cache clean --force && \
     NODE_OPTIONS="--max-old-space-size=4096" npm install -g @mermaid-js/mermaid-cli) || \

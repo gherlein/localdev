@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# Get the current directory name
+DIR_NAME=$(basename "$(pwd)")
+
+# Run container with proper user mapping and dynamic working directory
+podman run -it --rm \
+  -v "$(pwd):/${DIR_NAME}" \
+  -e HOST_UID=$(id -u) \
+  -e HOST_GID=$(id -g) \
+  -w "/${DIR_NAME}" \
+  localdev:latest \
+  bash
