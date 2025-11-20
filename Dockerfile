@@ -105,8 +105,8 @@ RUN (groupadd -g 1000 developer 2>/dev/null || groupmod -n developer $(getent gr
     echo 'developer ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
 
 # Fix permissions for developer user
-RUN mkdir -p /home/developer/.npm-global && \
-    mkdir -p /home/developer/go/{bin,src,pkg} && \
+# Note: npm global packages are managed by nvm, not in .npm-global
+RUN mkdir -p /home/developer/go/{bin,src,pkg} && \
     chown -R 1000:1000 /home/developer
 
 # Install npm tools in small batches to avoid OOM (exit 137)
@@ -189,9 +189,9 @@ RUN echo 'alias clauded="claude --dangerously-skip-permissions"' >> /etc/bash.ba
 # Repeat for copilot
 RUN echo 'alias copilotd="claude --allow-all-tools"' >> /etc/bash.bashrc
 
-# Set npm global directory for the developer user
-ENV NPM_CONFIG_PREFIX=/home/developer/.npm-global
-ENV PATH="/home/developer/.npm-global/bin:${PATH}"
+# Note: NPM_CONFIG_PREFIX is NOT set because we use nvm to manage npm
+# nvm already configures PATH correctly for npm global packages
+# Global npm packages installed via nvm are in: $NVM_DIR/versions/node/<version>/bin
 
 WORKDIR /workspace
 
