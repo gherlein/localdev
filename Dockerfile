@@ -24,12 +24,14 @@ RUN apt-get update && apt-get install -y \
 # Install Node.js using nvm to support multiple versions
 ENV NVM_DIR=/usr/local/nvm
 ENV NODE_VERSION_14=14.16.0
+ENV NODE_VERSION_18=18.18.2
 ENV NODE_VERSION_LTS=lts/*
 
 RUN mkdir -p $NVM_DIR && \
     curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash && \
     . $NVM_DIR/nvm.sh && \
     nvm install $NODE_VERSION_14 && \
+    nvm install $NODE_VERSION_18 && \
     nvm install $NODE_VERSION_LTS && \
     nvm alias default $NODE_VERSION_LTS && \
     nvm use default
