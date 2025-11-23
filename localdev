@@ -3,16 +3,6 @@
 # Get the current directory name
 DIR_NAME=$(basename "$(pwd)")
 
-# Handle existing external directory
-if [[ -d "./external" ]] && [[ -n "$(ls -A ./external 2>/dev/null)" ]]; then
-  echo "Moving existing ./external to ./external-preexist" >&2
-  rm -rf "./external-preexist"
-  mv "./external" "./external-preexist"
-fi
-
-# Create external directory if it doesn't exist
-mkdir -p "./external"
-
 # Initialize array for additional volume mounts
 VOLUME_MOUNTS=()
 
@@ -32,8 +22,8 @@ add_ro_mount() {
 
   local dir_name=$(basename "$path")
 
-  VOLUME_MOUNTS+=("-v" "${path}:/${DIR_NAME}/external/${dir_name}:ro")
-  echo "Mounting: $path -> /${DIR_NAME}/external/${dir_name} (read-only)" >&2
+  VOLUME_MOUNTS+=("-v" "${path}:/external/${dir_name}:ro")
+  echo "Mounting: $path -> /external/${dir_name} (read-only)" >&2
 }
 
 # Process command-line arguments
