@@ -242,8 +242,20 @@ RUN go install github.com/fatih/gomodifytags@latest && \
 RUN go install github.com/segmentio/golines@latest || echo "Warning: Failed to install golines" && \
     go install github.com/golang/mock/mockgen@latest || echo "Warning: Failed to install mockgen"
 
-# Copy and run NATS installation script
-COPY --chmod=755 install-nats.sh /tmp/install-nats.sh
-RUN /tmp/install-nats.sh && rm -f /tmp/install-nats.sh
+# Install NATS Server
+ARG NATS_VERSION=v2.10.5
+RUN case "${TARGETARCH}" in \
+    "amd64") NATS_ARCH=amd64 ;; \
+    "arm64") NATS_ARCH=arm64 ;; \
+    *) echo "Unsupported architecture for NATS: ${TARGETARCH}" && exit 1 ;; \
+    esac && \
+    curl -fsSL "https://github.com/nats-io/nats-server/releases/download/${NATS_VERSION}/nats-server-${NATS_VERSION}-linux-${NATS_ARCH}.tar.gz" | \
+    tar -xz -C /tmp && \
+    mv "/tmp/nats-server-${NATS_VERSION}-linux-${NATS_ARCH}/nats-server" /home/developer/.local/bin/ && \
+    chmod +x /home/developer/.local/bin/nats-server && \
+    rm -rf /tmp/nats-server-*
+
+# Install NATS CLI
+RUN go install github.com/nats-io/natscli/nats@latest
 
 CMD ["/bin/bash"]
