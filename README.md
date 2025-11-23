@@ -60,7 +60,6 @@ This Podman/Docker container provides an isolated environment where Claude Code 
 - **Multimedia**: ffmpeg, imagemagick, qpdf
 - **Network**: libpcap-dev
 - **Package Management**: Homebrew
-- **Messaging**: NATS server and tools
 
 ## Prerequisites
 
@@ -366,7 +365,7 @@ This container is ideal for:
 - Safe experimentation with AI code generation
 - Isolated build and test environments
 - Documentation generation and processing
-- Microservices development (with NATS support)
+- Microservices development
 - Systems programming (Go, Zig)
 - Cross-referencing multiple codebases safely
 
