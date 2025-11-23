@@ -244,6 +244,6 @@ RUN go install github.com/segmentio/golines@latest || echo "Warning: Failed to i
 
 # Copy and run NATS installation script
 COPY --chmod=755 install-nats.sh /tmp/install-nats.sh
-RUN /tmp/install-nats.sh && rm -f /tmp/install-nats.sh || true
+RUN /tmp/install-nats.sh && rm -f /tmp/install-nats.sh
 
 CMD ["/bin/bash"]
