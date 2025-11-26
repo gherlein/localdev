@@ -1,0 +1,89 @@
+#!/bin/bash
+
+# Get the current directory name
+DIR_NAME=$(basename "$(pwd)")
+
+# Initialize array for additional volume mounts
+VOLUME_MOUNTS=()
+
+# Track if we had any mount errors
+MOUNT_ERRORS=0
+
+# Function to add a read-only mount
+add_ro_mount() {
+  local path="$1"
+
+  path=$(realpath -m "$path" 2>/dev/null)
+  if [[ $? -ne 0 ]] || [[ -z "$path" ]]; then
+    echo "Warning: Invalid path '$1'" >&2
+    return 1
+  fi
+
+  if [[ ! -d "$path" ]]; then
+    echo "Warning: Skipping non-existent directory '$path'" >&2
+    return 1
+  fi
+
+  if [[ ! -r "$path" ]]; then
+    echo "Warning: Skipping unreadable directory '$path' (permission denied)" >&2
+    ((MOUNT_ERRORS++))
+    return 1
+  fi
+
+  local dir_name=$(basename "$path")
+
+  VOLUME_MOUNTS+=("-v" "${path}:/external/${dir_name}:ro")
+  echo "Mounting: $path -> /external/${dir_name} (read-only)" >&2
+}
+
+# Process command-line arguments
+for arg in "$@"; do
+  add_ro_mount "$arg"
+done
+
+# Process DEVENV_MOUNTS environment variable
+if [[ -n "$DEVENV_MOUNTS" ]]; then
+  IFS=';' read -ra MOUNT_PATHS <<< "$DEVENV_MOUNTS"
+  for path in "${MOUNT_PATHS[@]}"; do
+    path=$(echo "$path" | xargs)
+    if [[ -n "$path" ]]; then
+      add_ro_mount "$path"
+    fi
+  done
+fi
+
+# Verify current directory is accessible
+if [[ ! -r "$(pwd)" ]]; then
+  echo "Error: Current directory is not readable. Cannot mount workspace." >&2
+  exit 1
+fi
+
+# Handle .claude directory mount
+CLAUDE_MOUNT=()
+if [[ -d "$HOME/.claude" ]]; then
+  if [[ -r "$HOME/.claude" ]]; then
+    CLAUDE_MOUNT=("-v" "$HOME/.claude:/${DIR_NAME}/.claude:ro")
+    echo "Mounting: $HOME/.claude -> /${DIR_NAME}/.claude (read-only)" >&2
+  else
+    echo "Warning: $HOME/.claude exists but is not readable, skipping mount" >&2
+    ((MOUNT_ERRORS++))
+  fi
+else
+  echo "Info: $HOME/.claude does not exist, skipping mount" >&2
+fi
+
+# Warn if there were permission errors
+if [[ $MOUNT_ERRORS -gt 0 ]]; then
+  echo "Warning: $MOUNT_ERRORS mount(s) skipped due to permission issues" >&2
+fi
+
+# Run container with proper user mapping and dynamic working directory
+podman run -it --rm \
+  -v "$(pwd):/${DIR_NAME}" \
+  "${CLAUDE_MOUNT[@]}" \
+  "${VOLUME_MOUNTS[@]}" \
+  -e HOST_UID=$(id -u) \
+  -e HOST_GID=$(id -g) \
+  -w "/${DIR_NAME}" \
+  localdev:latest \
+  bash

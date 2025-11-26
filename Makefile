@@ -30,4 +30,4 @@ pre:
 	sudo apt-get -y install podman
 
 install:
-	cp localdev ~/bin
+	cp devenv ~/bin
