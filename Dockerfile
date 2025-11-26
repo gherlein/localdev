@@ -220,17 +220,6 @@ ENV PATH="/home/developer/.local/bin:${PATH}"
 # Install md2pdf
 RUN /home/developer/.local/bin/uv tool install md2pdf
 
-
-# Install zig
-RUN curl -fsSL https://ziglang.org/download/0.13.0/zig-linux-x86_64-0.13.0.tar.xz -o zig.tar.xz && \
-    tar -xf zig.tar.xz && \
-    sudo mv zig-linux-x86_64-0.13.0 /usr/local/zig && \
-    rm zig.tar.xz
-
-# Add Zig to PATH
-ENV PATH="/usr/local/zig:${PATH}"
-
-
 # Install Go development tools and linters (split into groups for better reliability)
 RUN go install golang.org/x/tools/cmd/goimports@latest && \
     go install golang.org/x/tools/cmd/godoc@latest && \

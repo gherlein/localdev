@@ -4,7 +4,8 @@
       "Bash(command:*)",
       "Bash(command -v:*)",
       "Bash(chmod:*)",
-      "Bash(./install-nats.sh:*)"
+      "Bash(./install-nats.sh:*)",
+      "Bash(podman system df)"
     ],
     "deny": [],
     "ask": []
