@@ -79,6 +79,9 @@ fi
 
 # Run container with proper user mapping and dynamic working directory
 podman run -it --rm \
+  --userns=keep-id \
+  --device /dev/bus/usb \
+  --group-add keep-groups \
   -v "$(pwd):/${DIR_NAME}" \
   "${CLAUDE_MOUNT[@]}" \
   "${VOLUME_MOUNTS[@]}" \

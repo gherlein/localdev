@@ -197,6 +197,14 @@ RUN echo 'alias copilotd="claude --allow-all-tools"' >> /etc/bash.bashrc
 
 WORKDIR /workspace
 
+# Install udev and USB libraries for device access
+RUN apt-get update && apt-get install -y \
+    udev \
+    libusb-1.0-0 \
+    libusb-1.0-0-dev \
+    usbutils \
+    && rm -rf /var/lib/apt/lists/*
+
 # Switch to developer user
 USER developer
 
