@@ -41,9 +41,9 @@ for arg in "$@"; do
   add_ro_mount "$arg"
 done
 
-# Process DEVENV_MOUNTS environment variable
-if [[ -n "$DEVENV_MOUNTS" ]]; then
-  IFS=';' read -ra MOUNT_PATHS <<< "$DEVENV_MOUNTS"
+# Process LOCALDEV_MOUNTS environment variable
+if [[ -n "$LOCALDEV_MOUNTS" ]]; then
+  IFS=';' read -ra MOUNT_PATHS <<< "$LOCALDEV_MOUNTS"
   for path in "${MOUNT_PATHS[@]}"; do
     path=$(echo "$path" | xargs)
     if [[ -n "$path" ]]; then
@@ -62,8 +62,8 @@ fi
 CLAUDE_MOUNT=()
 if [[ -d "$HOME/.claude" ]]; then
   if [[ -r "$HOME/.claude" ]]; then
-    CLAUDE_MOUNT=("-v" "$HOME/.claude:/${DIR_NAME}/.claude:ro")
-    echo "Mounting: $HOME/.claude -> /${DIR_NAME}/.claude (read-only)" >&2
+    CLAUDE_MOUNT=("-v" "$HOME/.claude:/claude:rw")
+    echo "Mounting: $HOME/.claude -> /claude (read-write)" >&2
   else
     echo "Warning: $HOME/.claude exists but is not readable, skipping mount" >&2
     ((MOUNT_ERRORS++))

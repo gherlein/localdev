@@ -186,8 +186,21 @@ RUN echo 'export NVM_DIR=/usr/local/nvm' >> /etc/bash.bashrc && \
     echo '[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"' >> /etc/bash.bashrc && \
     echo '[ -s "$NVM_DIR/bash_completion" ] && . "$NVM_DIR/bash_completion"' >> /etc/bash.bashrc
 
-# Create shell alias for convenient dangerous Claude execution for all users
-RUN echo 'alias clauded="claude --dangerously-skip-permissions"' >> /etc/bash.bashrc
+# Create wrapper scripts for claude commands that automatically add /claude directory
+RUN . $NVM_DIR/nvm.sh && \
+    CLAUDE_BIN=$(which claude) && \
+    mv "$CLAUDE_BIN" "${CLAUDE_BIN}.real" && \
+    echo '#!/bin/bash' > "$CLAUDE_BIN" && \
+    echo "exec ${CLAUDE_BIN}.real --add-dir /claude \"\$@\"" >> "$CLAUDE_BIN" && \
+    chmod +x "$CLAUDE_BIN"
+
+# Create clauded wrapper that includes both --dangerously-skip-permissions and --add-dir /claude
+RUN . $NVM_DIR/nvm.sh && \
+    CLAUDE_BIN=$(which claude) && \
+    echo '#!/bin/bash' > /usr/local/bin/clauded && \
+    echo "exec ${CLAUDE_BIN}.real --dangerously-skip-permissions --add-dir /claude \"\$@\"" >> /usr/local/bin/clauded && \
+    chmod +x /usr/local/bin/clauded
+
 # Repeat for copilot
 RUN echo 'alias copilotd="claude --allow-all-tools"' >> /etc/bash.bashrc
 
