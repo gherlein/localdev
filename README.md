@@ -9,7 +9,7 @@ This Podman/Docker container provides an isolated environment where Claude Code 
 ## Features
 
 ### Core Environment
-- **Base**: Eclipse Temurin 17 JDK
+- **Base**: Eclipse Temurin 17 JDK (required for Atlassian CLI and other JVM-based tools)
 - **OS**: Ubuntu with essential development tools
 - **Security**: Non-root user (developer) for best practices
 - **Architecture Support**: AMD64 and ARM64
@@ -24,6 +24,7 @@ This Podman/Docker container provides an isolated environment where Claude Code 
 - Debugging: Delve (dlv)
 - Code generation: wire, gomodifytags, impl, gotests
 - Mock generation: mockgen
+- Formatting: golines (optional, may fail on some architectures)
 
 #### Node.js (Multiple Versions via NVM)
 - Node.js 14.16.0
@@ -31,7 +32,7 @@ This Podman/Docker container provides an isolated environment where Claude Code 
 - Node.js LTS (default)
 - Package managers: npm, pnpm
 - TypeScript with ts-node
-- Build tools: webpack, esbuild
+- Build tools: webpack, webpack-cli, webpack-dev-server, esbuild
 - Testing: jest, vitest
 - Code quality: eslint, prettier
 - Development: nodemon, npm-check-updates
@@ -41,8 +42,8 @@ This Podman/Docker container provides an isolated environment where Claude Code 
 - uv package manager
 - md2pdf tool
 
-#### Zig
-- Zig 0.13.0 for systems programming
+#### Java
+- Eclipse Temurin JDK 17 (base image, provides JVM for Atlassian CLI and other tools)
 
 ### AI Assistants
 - **Claude Code CLI** (`@anthropic-ai/claude-code`)
@@ -56,12 +57,10 @@ This Podman/Docker container provides an isolated environment where Claude Code 
 - **Atlassian**: Atlassian CLI (acli)
 - **Containerization**: Podman with rootless configuration
 - **Documentation**: Marp CLI, mermaid-cli, md-to-pdf, pdf2md
-- **Utilities**: jq, tree, curl, build-essential
-- **Editors**: vim, nano
-- **Search**: ripgrep
+- **Utilities**: jq, tree, curl, build-essential, file, xxd, zip, unzip
 - **Multimedia**: ffmpeg, imagemagick, qpdf
 - **Network**: libpcap-dev
-- **USB**: usbutils, libusb-1.0
+- **USB**: usbutils, libusb-1.0, udev
 - **Package Management**: Homebrew
 
 ## Prerequisites
@@ -364,7 +363,6 @@ The container isolates AI assistants' file operations from your host system. Eve
 │   └── ...
 ├── usr/local/go/          # Go installation
 ├── usr/local/nvm/         # Node.js version manager
-├── usr/local/zig/         # Zig compiler
 ├── home/developer/        # Developer user home
 │   ├── go/               # GOPATH
 │   │   ├── bin/
@@ -387,7 +385,6 @@ PATH includes:
   - /home/developer/go/bin
   - /usr/local/nvm/versions/node/<version>/bin
   - /home/developer/.local/bin
-  - /usr/local/zig
   - /home/linuxbrew/.linuxbrew/bin
 ```
 
@@ -444,12 +441,11 @@ The `localdev` script runs the container with these options:
 
 This container is ideal for:
 - AI-assisted development with Claude Code or GitHub Copilot
-- Multi-language projects (Go + TypeScript/Node.js)
+- Multi-language projects (Go + TypeScript/Node.js + Java)
 - Safe experimentation with AI code generation
 - Isolated build and test environments
 - Documentation generation and processing
 - Microservices development
-- Systems programming (Go, Zig)
 - Cross-referencing multiple codebases safely
 - Hardware/USB development projects
 
