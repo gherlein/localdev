@@ -135,6 +135,15 @@ localdev
 
 This mounts your current working directory into the container at `/<directory-name>`.
 
+#### First Run Performance
+
+The first run of a new container will be noticeably slow (30-60+ seconds) due to:
+- **User namespace setup**: Podman's `--userns=keep-id` creates UID/GID mappings on first use
+- **Overlay filesystem initialization**: The container's layered filesystem requires initial setup
+- **Device permission checks**: USB passthrough (`--device /dev/bus/usb`) adds overhead
+
+Subsequent runs are much faster as these mappings and caches persist between sessions.
+
 ### Mount Architecture
 
 The `localdev` script creates the following mount structure:
