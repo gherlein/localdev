@@ -6,7 +6,10 @@
       "Bash(chmod:*)",
       "Bash(./install-nats.sh:*)",
       "Bash(podman system df)",
-      "Bash(podman ps:*)"
+      "Bash(podman ps:*)",
+      "Bash(podman info --format json)",
+      "Bash(./localdev ../brightsign-npu-gaze-extension-ng)",
+      "Bash(bash herlein/src/localdev/localdev herlein/src/brightsign-npu-gaze-extension-ng)"
     ],
     "deny": [],
     "ask": []

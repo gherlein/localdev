@@ -13,7 +13,7 @@ This Podman/Docker container provides an isolated environment where Claude Code 
 - **OS**: Ubuntu with essential development tools
 - **Security**: Non-root user (developer) for best practices
 - **Architecture Support**: AMD64 and ARM64
-- **USB Passthrough**: Access to `/dev/bus/usb` for hardware development
+- **USB Passthrough**: Access to `/dev/bus/usb` for hardware development (Linux only, automatically disabled on macOS)
 
 ### Language Support
 
@@ -299,15 +299,17 @@ nvm list
 
 ### USB Device Access
 
-The container includes USB passthrough for hardware development:
+The container includes USB passthrough for hardware development on Linux systems. USB passthrough is automatically disabled on macOS as `/dev/bus/usb` is not available on that platform.
 
 ```bash
-# List USB devices
+# List USB devices (Linux only)
 lsusb
 
 # Access USB devices for development
 # (requires appropriate permissions on host)
 ```
+
+**Note**: On macOS, USB device access from within the container is not supported due to platform limitations.
 
 ### Development Workflow Example
 
@@ -404,7 +406,7 @@ The `localdev` script runs the container with these options:
 | Option | Purpose |
 |--------|---------|
 | `--userns=keep-id` | Maps container user to host user for correct file ownership |
-| `--device /dev/bus/usb` | Enables USB device passthrough |
+| `--device /dev/bus/usb` | Enables USB device passthrough (Linux only, automatically skipped on macOS) |
 | `--group-add keep-groups` | Preserves host group memberships |
 | `-e HOST_UID/HOST_GID` | Passes host user IDs for reference |
 
@@ -442,9 +444,11 @@ The `localdev` script runs the container with these options:
 - The `/claude` directory should be visible inside the container
 
 **USB devices not accessible:**
-- Ensure USB devices are connected before starting the container
-- Check host permissions on `/dev/bus/usb`
-- May require running podman with additional privileges
+- USB passthrough only works on Linux
+- On macOS, USB device access from containers is not supported
+- On Linux: ensure USB devices are connected before starting the container
+- On Linux: check host permissions on `/dev/bus/usb`
+- May require running podman with additional privileges on Linux
 
 ## Supported Use Cases
 

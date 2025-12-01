@@ -13,14 +13,30 @@ MOUNT_ERRORS=0
 add_ro_mount() {
   local path="$1"
 
-  path=$(realpath -m "$path" 2>/dev/null)
-  if [[ $? -ne 0 ]] || [[ -z "$path" ]]; then
-    echo "Warning: Invalid path '$1'" >&2
+  # Handle relative paths by converting to absolute
+  if [[ ! "$path" = /* ]]; then
+    path="$(cd "$(dirname "$path")" 2>/dev/null && pwd)/$(basename "$path")"
+    if [[ $? -ne 0 ]]; then
+      echo "Warning: Cannot resolve path '$1'" >&2
+      return 1
+    fi
+  fi
+
+  # Verify directory exists
+  if [[ ! -d "$path" ]]; then
+    echo "Warning: Skipping non-existent directory '$path'" >&2
     return 1
   fi
 
-  if [[ ! -d "$path" ]]; then
-    echo "Warning: Skipping non-existent directory '$path'" >&2
+  # Normalize path using realpath if available, otherwise use Python
+  if command -v realpath >/dev/null 2>&1; then
+    path=$(realpath "$path" 2>/dev/null) || path=$(python3 -c "import os; print(os.path.realpath('$path'))" 2>/dev/null)
+  else
+    path=$(python3 -c "import os; print(os.path.realpath('$path'))" 2>/dev/null)
+  fi
+
+  if [[ -z "$path" ]]; then
+    echo "Warning: Cannot normalize path '$1'" >&2
     return 1
   fi
 
@@ -77,11 +93,36 @@ if [[ $MOUNT_ERRORS -gt 0 ]]; then
   echo "Warning: $MOUNT_ERRORS mount(s) skipped due to permission issues" >&2
 fi
 
+# Detect if podman is in remote mode
+IS_REMOTE=$(podman info --format json 2>/dev/null | python3 -c "
+import sys, json
+try:
+    data = json.load(sys.stdin)
+    print('true' if data.get('host', {}).get('serviceIsRemote', False) else 'false')
+except:
+    print('false')
+" 2>/dev/null)
+
+# Build group-add flag conditionally (skip if remote mode)
+GROUP_ADD_FLAG=()
+if [[ "$IS_REMOTE" != "true" ]]; then
+  GROUP_ADD_FLAG=("--group-add" "keep-groups")
+fi
+
+# Build USB device flag conditionally (only on Linux with /dev/bus/usb)
+USB_DEVICE_FLAG=()
+if [[ -d "/dev/bus/usb" ]]; then
+  USB_DEVICE_FLAG=("--device" "/dev/bus/usb")
+  echo "Info: USB device passthrough enabled (/dev/bus/usb)" >&2
+else
+  echo "Info: USB device passthrough unavailable (not Linux or no USB devices)" >&2
+fi
+
 # Run container with proper user mapping and dynamic working directory
 podman run -it --rm \
   --userns=keep-id \
-  --device /dev/bus/usb \
-  --group-add keep-groups \
+  "${USB_DEVICE_FLAG[@]}" \
+  "${GROUP_ADD_FLAG[@]}" \
   -v "$(pwd):/${DIR_NAME}" \
   "${CLAUDE_MOUNT[@]}" \
   "${VOLUME_MOUNTS[@]}" \
