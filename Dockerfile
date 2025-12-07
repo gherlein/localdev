@@ -252,4 +252,17 @@ RUN go install github.com/fatih/gomodifytags@latest && \
 RUN go install github.com/segmentio/golines@latest || echo "Warning: Failed to install golines" && \
     go install github.com/golang/mock/mockgen@latest || echo "Warning: Failed to install mockgen"
 
+# Install Protocol Buffer tools (buf, protoc-gen-go)
+RUN go install github.com/bufbuild/buf/cmd/buf@latest && \
+    go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+
+# Install NATS server and CLI
+RUN go install github.com/nats-io/nats-server/v2@latest && \
+    go install github.com/nats-io/natscli/nats@latest
+
+# Install Go development utilities (air, pkgsite, stress)
+RUN go install github.com/air-verse/air@latest && \
+    go install golang.org/x/pkgsite/cmd/pkgsite@latest && \
+    go install golang.org/x/tools/cmd/stress@latest
+
 CMD ["/bin/bash"]
