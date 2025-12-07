@@ -79,6 +79,33 @@ make pre
 
 See [podman.io](https://podman.io/docs/installation) for other platforms.
 
+### Configuring Podman Machine Memory (macOS)
+
+On macOS, Podman runs inside a virtual machine. The default memory allocation (2GB) is insufficient for building this container, which includes memory-intensive Go tool compilations (particularly `buf` and `protoc-gen-go`).
+
+**Recommended: 16GB** for optimal build performance. Adjust based on your host system's available RAM.
+
+```bash
+# Stop the Podman machine
+podman machine stop
+
+# Set memory to 16GB (16384 MB)
+podman machine set --memory 16384
+
+# Start the machine
+podman machine start
+
+# Verify the configuration
+podman machine list
+```
+
+**Guidelines for memory allocation:**
+- **16GB or less host RAM**: Allocate 8GB (`--memory 8192`)
+- **32GB or more host RAM**: Allocate 16GB (`--memory 16384`) (recommended)
+- **64GB or more host RAM**: Allocate 24GB+ (`--memory 24576`) for maximum performance
+
+If you encounter "signal: killed" errors during Go tool installations, your Podman machine memory is too low.
+
 ## Building the Container
 
 ### Quick Build
@@ -414,9 +441,11 @@ The `localdev` script runs the container with these options:
 
 ### Build Issues
 
-**Out of Memory (OOM) errors during npm installs:**
-- The Makefile sets `--memory=16g` to prevent this
-- If you still encounter issues, increase available memory
+**Out of Memory (OOM) errors during build:**
+- **macOS users**: The Podman machine needs sufficient memory. See [Configuring Podman Machine Memory](#configuring-podman-machine-memory-macos) for setup instructions.
+- The Makefile sets `--memory=16g` for the build process
+- If you see "signal: killed" during Go tool installations, increase Podman machine memory to 16GB
+- Symptoms include compilation failures for `buf`, `protoc-gen-go`, or other Go tools
 
 **Architecture detection fails:**
 - Manually set `TARGETARCH=amd64` or `TARGETARCH=arm64`

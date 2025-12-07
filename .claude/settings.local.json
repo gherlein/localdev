@@ -9,7 +9,14 @@
       "Bash(podman ps:*)",
       "Bash(podman info --format json)",
       "Bash(./localdev ../brightsign-npu-gaze-extension-ng)",
-      "Bash(bash herlein/src/localdev/localdev herlein/src/brightsign-npu-gaze-extension-ng)"
+      "Bash(bash herlein/src/localdev/localdev herlein/src/brightsign-npu-gaze-extension-ng)",
+      "Bash(docker buildx ls)",
+      "Bash(podman machine list)",
+      "Bash(podman machine info)",
+      "Bash(podman machine inspect)",
+      "Bash(podman machine stop)",
+      "Bash(podman machine set --memory 16384)",
+      "Bash(podman machine start)"
     ],
     "deny": [],
     "ask": []
