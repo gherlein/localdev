@@ -16,7 +16,9 @@
       "Bash(podman machine inspect)",
       "Bash(podman machine stop)",
       "Bash(podman machine set --memory 16384)",
-      "Bash(podman machine start)"
+      "Bash(podman machine start)",
+      "Bash(podman info:*)",
+      "Bash(systemctl:*)"
     ],
     "deny": [],
     "ask": []
