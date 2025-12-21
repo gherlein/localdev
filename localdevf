@@ -7,8 +7,38 @@ DIR_NAME=$(basename "$(pwd)")
 # Initialize array for additional volume mounts
 VOLUME_MOUNTS=()
 
+# Initialize array for device mounts
+DEVICE_MOUNTS=()
+
 # Track if we had any mount errors
 MOUNT_ERRORS=0
+
+# Function to add a device mount
+add_device_mount() {
+  local path="$1"
+
+  # Verify device exists
+  if [[ ! -e "$path" ]]; then
+    echo "Warning: Skipping non-existent device '$path'" >&2
+    return 1
+  fi
+
+  # Verify it's a device (character or block device)
+  if [[ ! -c "$path" && ! -b "$path" ]]; then
+    echo "Warning: '$path' is not a device file (not char or block device)" >&2
+    return 1
+  fi
+
+  # Check readability
+  if [[ ! -r "$path" ]]; then
+    echo "Warning: Skipping unreadable device '$path' (permission denied)" >&2
+    ((MOUNT_ERRORS++))
+    return 1
+  fi
+
+  DEVICE_MOUNTS+=("--device" "$path")
+  echo "Device passthrough: $path" >&2
+}
 
 # Function to add a read-only mount
 add_ro_mount() {
@@ -55,7 +85,11 @@ add_ro_mount() {
 
 # Process command-line arguments
 for arg in "$@"; do
-  add_ro_mount "$arg"
+  if [[ "$arg" == /dev/* ]]; then
+    add_device_mount "$arg"
+  else
+    add_ro_mount "$arg"
+  fi
 done
 
 # Process LOCALDEV_MOUNTS environment variable
@@ -64,7 +98,11 @@ if [[ -n "$LOCALDEV_MOUNTS" ]]; then
   for path in "${MOUNT_PATHS[@]}"; do
     path=$(echo "$path" | xargs)
     if [[ -n "$path" ]]; then
-      add_ro_mount "$path"
+      if [[ "$path" == /dev/* ]]; then
+        add_device_mount "$path"
+      else
+        add_ro_mount "$path"
+      fi
     fi
   done
 fi
@@ -123,6 +161,7 @@ fi
 podman run -it --rm \
   --userns=keep-id \
   "${USB_DEVICE_FLAG[@]}" \
+  "${DEVICE_MOUNTS[@]}" \
   "${GROUP_ADD_FLAG[@]}" \
   -v "$(pwd):/${DIR_NAME}" \
   "${CLAUDE_MOUNT[@]}" \
