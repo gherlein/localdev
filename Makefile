@@ -16,6 +16,21 @@ ifeq ($(ARCH),arm64)
    TARGETARCH := arm64
 endif
 
+.PHONY: help all full fast no-cache no-cache-full no-cache-fast run run-fast pre install
+
+help:
+	@echo "Available targets:"
+	@echo "  all            - Build both containers (full + fast)"
+	@echo "  full           - Build full localdev container (Java, all Node versions)"
+	@echo "  fast           - Build fast localdevf container (no Java, Node LTS only)"
+	@echo "  no-cache       - Rebuild both containers without cache"
+	@echo "  no-cache-full  - Rebuild full container without cache"
+	@echo "  no-cache-fast  - Rebuild fast container without cache"
+	@echo "  run            - Run full container"
+	@echo "  run-fast       - Run fast container"
+	@echo "  install        - Install both launchers to ~/bin"
+	@echo "  pre            - Install podman (apt)"
+
 all: full fast
 
 full:
@@ -42,5 +57,13 @@ pre:
 	sudo apt-get -y install podman
 
 install:
-	cp localdev ~/bin
-	cp localdevf ~/bin
+	@if podman image exists localdev:latest 2>/dev/null; then \
+		cp localdev ~/bin && echo "Installed localdev to ~/bin"; \
+	else \
+		echo "Warning: localdev:latest image not found, skipping localdev install (run 'make full' first)"; \
+	fi
+	@if podman image exists localdevf:latest 2>/dev/null; then \
+		cp localdevf ~/bin && echo "Installed localdevf to ~/bin"; \
+	else \
+		echo "Warning: localdevf:latest image not found, skipping localdevf install (run 'make fast' first)"; \
+	fi
