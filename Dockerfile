@@ -41,8 +41,13 @@ ENV NODE_PATH="$NVM_DIR/versions/node"
 SHELL ["/bin/bash", "-c"]
 
 # Set PATH to include the default Node.js version installed by nvm
+# Also create a symlink for consistent path across node version updates
 RUN . $NVM_DIR/nvm.sh && \
-    echo "export PATH=\"$NVM_DIR/versions/node/$(nvm version default)/bin:\$PATH\"" >> /etc/environment
+    ln -s "$NVM_DIR/versions/node/$(nvm version default)" "$NVM_DIR/default" && \
+    echo "export PATH=\"$NVM_DIR/default/bin:\$PATH\"" >> /etc/environment
+
+# Add node to PATH at container level (required for scripts like clauded)
+ENV PATH="$NVM_DIR/default/bin:${PATH}"
 
 # Install Podman
 RUN apt-get update && apt-get install -y \
