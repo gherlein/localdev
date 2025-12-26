@@ -1,5 +1,7 @@
-# Lightweight development container - optimized for fast startup
-FROM debian:bookworm-slim
+# localfull - Full-featured development container
+# Includes Java 17, Atlassian CLI, multiple Node.js versions, and additional tools
+# For lightweight container, see Dockerfile (localdev)
+FROM docker.io/eclipse-temurin:17-jdk
 
 # Install dependencies
 RUN apt-get update && apt-get install -y \
@@ -20,17 +22,21 @@ RUN apt-get update && apt-get install -y \
     gosu \
     python3 \
     python3-pip \
-    tree \
-    ca-certificates && rm -rf /var/lib/apt/lists/*
+    tree && rm -rf /var/lib/apt/lists/*
 
-# Install Node.js LTS only using nvm
+# Install Node.js using nvm to support multiple versions
 ENV NVM_DIR=/usr/local/nvm
+ENV NODE_VERSION_14=14.16.0
+ENV NODE_VERSION_18=18.18.2
+ENV NODE_VERSION_LTS=lts/*
 
 RUN mkdir -p $NVM_DIR && \
     curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash && \
     . $NVM_DIR/nvm.sh && \
-    nvm install --lts && \
-    nvm alias default node && \
+    nvm install $NODE_VERSION_14 && \
+    nvm install $NODE_VERSION_18 && \
+    nvm install $NODE_VERSION_LTS && \
+    nvm alias default $NODE_VERSION_LTS && \
     nvm use default
 
 # Add nvm to PATH - source nvm in subsequent RUN commands
@@ -77,6 +83,14 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | d
     apt-get install -y gh && \
     rm -rf /var/lib/apt/lists/*
 
+# Install Atlassian CLI using the official APT repository
+RUN mkdir -p /etc/apt/keyrings && \
+    curl -fsSL https://acli.atlassian.com/gpg/public-key.asc | gpg --dearmor -o /etc/apt/keyrings/acli-archive-keyring.gpg && \
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/acli-archive-keyring.gpg] https://acli.atlassian.com/linux/deb stable main" | tee /etc/apt/sources.list.d/acli.list > /dev/null && \
+    apt-get update && \
+    apt-get install -y acli && \
+    rm -rf /var/lib/apt/lists/*
+
 # Install Go
 ARG GO_VERSION=1.25.0
 ARG TARGETARCH
@@ -94,27 +108,95 @@ ENV GOPATH=/home/developer/go
 ENV PATH="${GOROOT}/bin:${GOPATH}/bin:${PATH}"
 
 # Create a new user with UID/GID 1000 to match host user
+# Handle case where GID 1000 already exists
 RUN (groupadd -g 1000 developer 2>/dev/null || groupmod -n developer $(getent group 1000 | cut -d: -f1)) && \
     (useradd -m -u 1000 -g 1000 -s /bin/bash developer 2>/dev/null || \
     usermod -l developer -d /home/developer -m $(getent passwd 1000 | cut -d: -f1) 2>/dev/null || true) && \
     echo 'developer ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
 
 # Fix permissions for developer user
+# Note: npm global packages are managed by nvm, not in .npm-global
 RUN mkdir -p /home/developer/go/{bin,src,pkg} && \
     chown -R 1000:1000 /home/developer
 
-# Install essential npm tools only
+# Install npm tools in small batches to avoid OOM (exit 137)
+# Batch 1: Essential tools
 RUN . $NVM_DIR/nvm.sh && \
-    NODE_OPTIONS="--max-old-space-size=4096" npm install -g \
+    NODE_OPTIONS="--max-old-space-size=8192" npm install -g \
     @anthropic-ai/claude-code \
     typescript \
-    ts-node \
-    pnpm \
+    ts-node && \
+    npm cache clean --force
+
+# Batch 2: Build tools
+RUN . $NVM_DIR/nvm.sh && \
+    NODE_OPTIONS="--max-old-space-size=8192" npm install -g \
+    webpack \
+    webpack-cli \
+    webpack-dev-server \
+    esbuild && \
+    npm cache clean --force
+
+# Batch 3: Development tools
+RUN . $NVM_DIR/nvm.sh && \
+    NODE_OPTIONS="--max-old-space-size=8192" npm install -g \
+    nodemon \
+    npm-check-updates \
+    pnpm && \
+    npm cache clean --force
+
+# Batch 4: Code quality tools
+RUN . $NVM_DIR/nvm.sh && \
+    NODE_OPTIONS="--max-old-space-size=8192" npm install -g \
     eslint \
     prettier && \
     npm cache clean --force
 
-# Setup lazy-load nvm in bash for all users (loads on first use)
+# Batch 5: Testing tools (split to avoid OOM)
+RUN . $NVM_DIR/nvm.sh && \
+    NODE_OPTIONS="--max-old-space-size=4096" npm install -g \
+    jest && \
+    npm cache clean --force
+
+RUN . $NVM_DIR/nvm.sh && \
+    NODE_OPTIONS="--max-old-space-size=4096" npm install -g \
+    vitest && \
+    npm cache clean --force
+
+# Batch 6: PDF and other tools
+RUN . $NVM_DIR/nvm.sh && \
+    NODE_OPTIONS="--max-old-space-size=8192" npm install -g \
+    md-to-pdf \
+    pdf2md \
+    @github/copilot && \
+    npm cache clean --force
+
+# Install Homebrew
+RUN /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# Add Homebrew to PATH
+ENV PATH="/home/linuxbrew/.linuxbrew/bin:${PATH}"
+
+# install Marp CLI
+RUN brew install marp-cli
+
+# Install Hugo Extended static site generator
+ARG HUGO_VERSION=0.146.0
+RUN HUGO_ARCH=$(dpkg --print-architecture) && \
+    curl -fsSL https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_extended_${HUGO_VERSION}_linux-${HUGO_ARCH}.deb -o /tmp/hugo.deb && \
+    dpkg -i /tmp/hugo.deb && \
+    rm /tmp/hugo.deb
+
+# Install memory-heavy mermaid-cli separately with increased memory limit
+# and retry logic in case of OOM
+RUN . $NVM_DIR/nvm.sh && \
+    NODE_OPTIONS="--max-old-space-size=4096" npm install -g @mermaid-js/mermaid-cli || \
+    (echo "First attempt failed, cleaning cache and retrying..." && \
+    npm cache clean --force && \
+    NODE_OPTIONS="--max-old-space-size=4096" npm install -g @mermaid-js/mermaid-cli) || \
+    echo "Warning: Failed to install mermaid-cli (requires more memory)"
+
+# Setup lazy-load nvm in bash for all users (loads on first use for faster startup)
 RUN echo 'export NVM_DIR=/usr/local/nvm' >> /etc/bash.bashrc && \
     echo '# Lazy-load nvm for faster shell startup' >> /etc/bash.bashrc && \
     echo 'nvm() { unset -f nvm node npm npx; . "$NVM_DIR/nvm.sh"; nvm "$@"; }' >> /etc/bash.bashrc && \
@@ -139,6 +221,13 @@ RUN . $NVM_DIR/nvm.sh && \
     echo "exec ${CLAUDE_BIN}.real --dangerously-skip-permissions --add-dir /claude \"\$@\"" >> /usr/local/bin/clauded && \
     chmod +x /usr/local/bin/clauded
 
+# Repeat for copilot
+RUN echo 'alias copilotd="claude --allow-all-tools"' >> /etc/bash.bashrc
+
+# Note: NPM_CONFIG_PREFIX is NOT set because we use nvm to manage npm
+# nvm already configures PATH correctly for npm global packages
+# Global npm packages installed via nvm are in: $NVM_DIR/versions/node/<version>/bin
+
 WORKDIR /workspace
 
 # Install udev and USB libraries for device access
@@ -161,9 +250,39 @@ RUN for i in 1 2 3; do \
 # Add uv to PATH
 ENV PATH="/home/developer/.local/bin:${PATH}"
 
-# Install essential Go tools only
+# Install md2pdf
+RUN /home/developer/.local/bin/uv tool install md2pdf
+
+# Install Go development tools and linters (split into groups for better reliability)
 RUN go install golang.org/x/tools/cmd/goimports@latest && \
-    go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest && \
+    go install golang.org/x/tools/cmd/godoc@latest && \
+    go install mvdan.cc/gofumpt@latest && \
+    go install golang.org/x/vuln/cmd/govulncheck@latest
+
+RUN go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest && \
+    go install honnef.co/go/tools/cmd/staticcheck@latest && \
     go install github.com/go-delve/delve/cmd/dlv@latest
+
+RUN go install github.com/fatih/gomodifytags@latest && \
+    go install github.com/josharian/impl@latest && \
+    go install github.com/cweill/gotests/gotests@latest && \
+    go install github.com/google/wire/cmd/wire@latest
+
+# Install remaining tools (skip problematic ones if they fail)
+RUN go install github.com/segmentio/golines@latest || echo "Warning: Failed to install golines" && \
+    go install github.com/golang/mock/mockgen@latest || echo "Warning: Failed to install mockgen"
+
+# Install Protocol Buffer tools (buf, protoc-gen-go)
+RUN go install github.com/bufbuild/buf/cmd/buf@latest && \
+    go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+
+# Install NATS server and CLI
+RUN go install github.com/nats-io/nats-server/v2@latest && \
+    go install github.com/nats-io/natscli/nats@latest
+
+# Install Go development utilities (air, pkgsite, stress)
+RUN go install github.com/air-verse/air@latest && \
+    go install golang.org/x/pkgsite/cmd/pkgsite@latest && \
+    go install golang.org/x/tools/cmd/stress@latest
 
 CMD ["/bin/bash"]

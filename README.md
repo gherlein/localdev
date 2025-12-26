@@ -6,11 +6,32 @@ A feature-rich containerized development environment for safely using Claude Cod
 
 This Podman/Docker container provides an isolated environment where Claude Code and other AI assistants can operate with elevated permissions (`--dangerously-skip-permissions`) without compromising your host system. The container includes a comprehensive development toolchain for modern software development.
 
+## Container Variants
+
+Two container variants are available:
+
+| Container | Script | Image | Description |
+|-----------|--------|-------|-------------|
+| **localdev** (default) | `localdev` | `localdev:latest` | Lightweight, fast-starting container with Node.js LTS, Go, and essential tools |
+| **localfull** | `localfull` | `localfull:latest` | Full-featured container with Java 17, Atlassian CLI, multiple Node.js versions |
+
+### What's in localdev (default)
+- Debian Bookworm slim base (fast startup)
+- Node.js LTS only (via nvm)
+- Go toolchain with essential tools
+- Claude Code CLI, TypeScript, pnpm, eslint, prettier
+- No Java, no Atlassian CLI
+
+### What's in localfull
+- Eclipse Temurin 17 JDK base
+- Multiple Node.js versions (14, 18, LTS)
+- Full Go toolchain with all tools
+- Atlassian CLI (acli)
+- Marp CLI, mermaid-cli, Hugo, and more
+
 ## Features
 
 ### Core Environment
-- **Base**: Eclipse Temurin 17 JDK (required for Atlassian CLI and other JVM-based tools)
-- **OS**: Ubuntu with essential development tools
 - **Security**: Non-root user (developer) for best practices
 - **Architecture Support**: AMD64 and ARM64
 - **USB Passthrough**: Access to `/dev/bus/usb` for hardware development (Linux only, automatically disabled on macOS)
@@ -26,23 +47,20 @@ This Podman/Docker container provides an isolated environment where Claude Code 
 - Mock generation: mockgen
 - Formatting: golines (optional, may fail on some architectures)
 
-#### Node.js (Multiple Versions via NVM)
-- Node.js 14.16.0
-- Node.js 18.18.2
-- Node.js LTS (default)
+#### Node.js (via NVM)
+- **localdev**: Node.js LTS only
+- **localfull**: Node.js 14.16.0, 18.18.2, and LTS
 - Package managers: npm, pnpm
 - TypeScript with ts-node
-- Build tools: webpack, webpack-cli, webpack-dev-server, esbuild
-- Testing: jest, vitest
 - Code quality: eslint, prettier
-- Development: nodemon, npm-check-updates
+- **localfull only**: webpack, esbuild, jest, vitest, nodemon, npm-check-updates
 
 #### Python
 - Python 3 with pip
 - uv package manager
 - md2pdf tool
 
-#### Java
+#### Java (localfull only)
 - Eclipse Temurin JDK 17 (base image, provides JVM for Atlassian CLI and other tools)
 
 ### AI Assistants
@@ -54,14 +72,14 @@ This Podman/Docker container provides an isolated environment where Claude Code 
 
 ### Development Tools
 - **Version Control**: Git, GitHub CLI (gh)
-- **Atlassian**: Atlassian CLI (acli)
+- **Atlassian**: Atlassian CLI (acli) - **localfull only**
 - **Containerization**: Podman with rootless configuration
-- **Documentation**: Marp CLI, mermaid-cli, md-to-pdf, pdf2md
+- **Documentation**: Marp CLI, mermaid-cli, md-to-pdf, pdf2md, Hugo - **localfull only**
 - **Utilities**: jq, tree, curl, build-essential, file, xxd, zip, unzip
 - **Multimedia**: ffmpeg, imagemagick, qpdf
 - **Network**: libpcap-dev
 - **USB**: usbutils, libusb-1.0, udev
-- **Package Management**: Homebrew
+- **Package Management**: Homebrew - **localfull only**
 
 ## Prerequisites
 
@@ -108,20 +126,33 @@ If you encounter "signal: killed" errors during Go tool installations, your Podm
 
 ## Building the Container
 
-### Quick Build
+### Quick Build (Default Container)
 ```bash
-make
+make default
 ```
 
-This builds the container with:
-- Tag: `localdev:latest`
+This builds the lightweight `localdev:latest` container with:
 - Memory limit: 16GB
 - Automatic architecture detection (amd64/arm64)
 - Pull latest base images
 
+### Build Full Container
+```bash
+make full
+```
+
+This builds the `localfull:latest` container with Java, Atlassian CLI, and additional tools.
+
+### Build Both Containers
+```bash
+make all
+```
+
 ### Build from Scratch (No Cache)
 ```bash
-make no-cache
+make no-cache           # Both containers
+make no-cache-default   # Default container only
+make no-cache-full      # Full container only
 ```
 
 ### Manual Build
@@ -130,24 +161,30 @@ make no-cache
 ARCH=$(uname -m)
 if [ "$ARCH" = "x86_64" ]; then TARGETARCH=amd64; else TARGETARCH=arm64; fi
 
-# Build
+# Build default (lightweight) container
 podman build -t localdev:latest --memory=16g --build-arg TARGETARCH=$TARGETARCH --pull .
+
+# Build full container
+podman build -t localfull:latest --memory=16g --build-arg TARGETARCH=$TARGETARCH --pull -f Dockerfile.full .
 ```
 
 ## Using the Container
 
-### The `localdev` Script
+### The `localdev` and `localfull` Scripts
 
-The `localdev` script provides convenient access to the container with automatic directory mounting and support for read-only external directories.
+Both scripts provide convenient access to their respective containers with automatic directory mounting and support for read-only external directories.
+
+- **`localdev`** - launches the lightweight container (default)
+- **`localfull`** - launches the full-featured container with Java and Atlassian CLI
 
 #### Installation
 ```bash
-# Copy to your bin directory
+# Copy both to your bin directory
 make install
 
 # Or manually
-cp localdev ~/bin/
-chmod +x ~/bin/localdev
+cp localdev localfull ~/bin/
+chmod +x ~/bin/localdev ~/bin/localfull
 ```
 
 #### Basic Usage
@@ -259,11 +296,15 @@ export LOCALDEV_MOUNTS="/home/user/common-libs"
 
 #### Simple Run
 ```bash
-# Using Makefile
+# Using Makefile (default container)
 make run
 
+# Full container
+make run-full
+
 # Or manually
-podman run --rm -it -v "$(pwd):/workspace" localdev:latest bash
+podman run --rm -it -v "$(pwd):/workspace" localdev:latest bash      # default
+podman run --rm -it -v "$(pwd):/workspace" localfull:latest bash     # full
 ```
 
 #### Custom Mount Points
@@ -312,7 +353,9 @@ cd /external/reference-code
 cat /external/docs/api-spec.md
 ```
 
-### Node.js Version Management
+### Node.js Version Management (localfull only)
+
+Multiple Node.js versions are only available in the `localfull` container:
 
 ```bash
 # Switch Node.js versions
@@ -323,6 +366,8 @@ nvm use default  # LTS
 # List installed versions
 nvm list
 ```
+
+Note: The default `localdev` container only includes Node.js LTS.
 
 ### USB Device Access
 
@@ -444,7 +489,8 @@ The `localdev` script runs the container with these options:
 **Out of Memory (OOM) errors during build:**
 - **macOS users**: The Podman machine needs sufficient memory. See [Configuring Podman Machine Memory](#configuring-podman-machine-memory-macos) for setup instructions.
 - The Makefile sets `--memory=16g` for the build process
-- If you see "signal: killed" during Go tool installations, increase Podman machine memory to 16GB
+- The default `localdev` container requires less memory than `localfull`
+- If you see "signal: killed" during Go tool installations when building `localfull`, increase Podman machine memory to 16GB
 - Symptoms include compilation failures for `buf`, `protoc-gen-go`, or other Go tools
 
 **Architecture detection fails:**
@@ -483,13 +529,17 @@ The `localdev` script runs the container with these options:
 
 This container is ideal for:
 - AI-assisted development with Claude Code or GitHub Copilot
-- Multi-language projects (Go + TypeScript/Node.js + Java)
+- Multi-language projects (Go + TypeScript/Node.js)
 - Safe experimentation with AI code generation
 - Isolated build and test environments
-- Documentation generation and processing
-- Microservices development
 - Cross-referencing multiple codebases safely
 - Hardware/USB development projects
+
+**Use `localfull` for:**
+- Java/JVM development
+- Atlassian CLI integration (Jira, Confluence)
+- Documentation generation (Marp, Mermaid, Hugo)
+- Projects requiring multiple Node.js versions
 
 ## License Considerations
 

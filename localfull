@@ -1,5 +1,4 @@
 #!/bin/bash
-# Fast localdev launcher - lightweight container (no Java, single Node LTS)
 
 # Get the current directory name
 DIR_NAME=$(basename "$(pwd)")
@@ -169,5 +168,5 @@ podman run -it --rm \
   -e HOST_UID=$(id -u) \
   -e HOST_GID=$(id -g) \
   -w "/${DIR_NAME}" \
-  localdevf:latest \
+  localfull:latest \
   bash

@@ -1,4 +1,5 @@
 #!/bin/bash
+# localdev launcher - lightweight container (no Java, single Node LTS) - DEFAULT
 
 # Get the current directory name
 DIR_NAME=$(basename "$(pwd)")
