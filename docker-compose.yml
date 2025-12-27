@@ -9,6 +9,7 @@ services:
       # Pass your host user's UID and GID to the container
       - HOST_UID=${UID:-1000}
       - HOST_GID=${GID:-1000}
+      - CLAUDE_CODE_THEME=light
     working_dir: /workspace
     stdin_open: true
     tty: true
