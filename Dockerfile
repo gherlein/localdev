@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y \
     git \
     unzip \
     build-essential \
+    cmake \
     squashfs-tools \
     zip \
     file \
@@ -23,6 +24,7 @@ RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip \
     tree \
+    mg \
     ca-certificates && rm -rf /var/lib/apt/lists/*
 
 # Install Node.js LTS only using nvm
@@ -124,7 +126,9 @@ RUN echo 'export NVM_DIR=/usr/local/nvm' >> /etc/bash.bashrc && \
     echo 'npm() { unset -f nvm node npm npx; . "$NVM_DIR/nvm.sh"; npm "$@"; }' >> /etc/bash.bashrc && \
     echo 'npx() { unset -f nvm node npm npx; . "$NVM_DIR/nvm.sh"; npx "$@"; }' >> /etc/bash.bashrc && \
     echo '# Add default node to PATH for non-interactive use' >> /etc/bash.bashrc && \
-    echo 'export PATH="$NVM_DIR/versions/node/$(cat $NVM_DIR/alias/default 2>/dev/null || echo "v22")/bin:$PATH" 2>/dev/null || true' >> /etc/bash.bashrc
+    echo 'export PATH="$NVM_DIR/versions/node/$(cat $NVM_DIR/alias/default 2>/dev/null || echo "v22")/bin:$PATH" 2>/dev/null || true' >> /etc/bash.bashrc && \
+    echo '# Alias emacs to mg' >> /etc/bash.bashrc && \
+    echo 'alias emacs=mg' >> /etc/bash.bashrc
 
 # Create wrapper scripts for claude commands that automatically add /claude directory
 RUN . $NVM_DIR/nvm.sh && \
