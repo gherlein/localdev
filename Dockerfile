@@ -25,6 +25,7 @@ RUN apt-get update && apt-get install -y \
     python3-pip \
     tree \
     mg \
+    rsync \
     ca-certificates && rm -rf /var/lib/apt/lists/*
 
 # Install Node.js LTS only using nvm
