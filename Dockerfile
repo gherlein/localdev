@@ -108,10 +108,9 @@ RUN (groupadd -g 1000 developer 2>/dev/null || groupmod -n developer $(getent gr
 RUN mkdir -p /home/developer/go/{bin,src,pkg} && \
     chown -R 1000:1000 /home/developer
 
-# Install essential npm tools only
+# Install essential npm tools only (Claude Code installed later as developer user)
 RUN . $NVM_DIR/nvm.sh && \
     NODE_OPTIONS="--max-old-space-size=4096" npm install -g \
-    @anthropic-ai/claude-code \
     typescript \
     ts-node \
     pnpm \
@@ -131,21 +130,6 @@ RUN echo 'export NVM_DIR=/usr/local/nvm' >> /etc/bash.bashrc && \
     echo '# Alias emacs to mg' >> /etc/bash.bashrc && \
     echo 'alias emacs=mg' >> /etc/bash.bashrc
 
-# Create wrapper scripts for claude commands that automatically add /claude directory
-RUN . $NVM_DIR/nvm.sh && \
-    CLAUDE_BIN=$(which claude) && \
-    mv "$CLAUDE_BIN" "${CLAUDE_BIN}.real" && \
-    echo '#!/bin/bash' > "$CLAUDE_BIN" && \
-    echo "exec ${CLAUDE_BIN}.real --add-dir /claude \"\$@\"" >> "$CLAUDE_BIN" && \
-    chmod +x "$CLAUDE_BIN"
-
-# Create clauded wrapper that includes both --dangerously-skip-permissions and --add-dir /claude
-RUN . $NVM_DIR/nvm.sh && \
-    CLAUDE_BIN=$(which claude) && \
-    echo '#!/bin/bash' > /usr/local/bin/clauded && \
-    echo "exec ${CLAUDE_BIN}.real --dangerously-skip-permissions --add-dir /claude \"\$@\"" >> /usr/local/bin/clauded && \
-    chmod +x /usr/local/bin/clauded
-
 WORKDIR /workspace
 
 # Install udev and USB libraries for device access
@@ -158,6 +142,26 @@ RUN apt-get update && apt-get install -y \
 
 # Switch to developer user
 USER developer
+
+# Install Claude Code as developer user (enables auto-updates)
+RUN . $NVM_DIR/nvm.sh && \
+    npm install -g @anthropic-ai/claude-code
+
+# Create wrapper scripts for claude commands that automatically add /claude directory
+RUN . $NVM_DIR/nvm.sh && \
+    CLAUDE_BIN=$(which claude) && \
+    mv "$CLAUDE_BIN" "${CLAUDE_BIN}.real" && \
+    echo '#!/bin/bash' > "$CLAUDE_BIN" && \
+    echo "exec ${CLAUDE_BIN}.real --add-dir /claude \"\$@\"" >> "$CLAUDE_BIN" && \
+    chmod +x "$CLAUDE_BIN"
+
+# Create clauded wrapper that includes both --dangerously-skip-permissions and --add-dir /claude
+RUN . $NVM_DIR/nvm.sh && \
+    CLAUDE_BIN=$(which claude) && \
+    mkdir -p "$HOME/.local/bin" && \
+    echo '#!/bin/bash' > "$HOME/.local/bin/clauded" && \
+    echo "exec ${CLAUDE_BIN}.real --dangerously-skip-permissions --add-dir /claude \"\$@\"" >> "$HOME/.local/bin/clauded" && \
+    chmod +x "$HOME/.local/bin/clauded"
 
 # install uv with retry logic
 RUN for i in 1 2 3; do \
