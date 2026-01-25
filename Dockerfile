@@ -127,6 +127,8 @@ RUN echo 'export NVM_DIR=/usr/local/nvm' >> /etc/bash.bashrc && \
     echo 'npx() { unset -f nvm node npm npx; . "$NVM_DIR/nvm.sh"; npx "$@"; }' >> /etc/bash.bashrc && \
     echo '# Add default node to PATH for non-interactive use' >> /etc/bash.bashrc && \
     echo 'export PATH="$NVM_DIR/versions/node/$(cat $NVM_DIR/alias/default 2>/dev/null || echo "v22")/bin:$PATH" 2>/dev/null || true' >> /etc/bash.bashrc && \
+    echo '# Add user npm global binaries to PATH' >> /etc/bash.bashrc && \
+    echo 'export PATH="$HOME/.npm-global/bin:$PATH"' >> /etc/bash.bashrc && \
     echo '# Alias emacs to mg' >> /etc/bash.bashrc && \
     echo 'alias emacs=mg' >> /etc/bash.bashrc
 
@@ -143,8 +145,14 @@ RUN apt-get update && apt-get install -y \
 # Switch to developer user
 USER developer
 
+# Update PATH to include user-local npm binaries
+ENV PATH="/home/developer/.npm-global/bin:${PATH}"
+
 # Install Claude Code as developer user (enables auto-updates)
+# Configure npm prefix and install in the same command to avoid nvm conflicts
 RUN . $NVM_DIR/nvm.sh && \
+    mkdir -p "$HOME/.npm-global" && \
+    npm config set prefix "$HOME/.npm-global" && \
     npm install -g @anthropic-ai/claude-code
 
 # Create wrapper scripts for claude commands that automatically add /claude directory
