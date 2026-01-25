@@ -148,24 +148,16 @@ USER developer
 # Update PATH to include user-local npm binaries
 ENV PATH="/home/developer/.npm-global/bin:${PATH}"
 
-# Install Claude Code as developer user (enables auto-updates)
-# Configure npm prefix and install in the same command to avoid nvm conflicts
+# Install Claude Code and create wrappers (all in one step to avoid nvm conflicts)
 RUN . $NVM_DIR/nvm.sh && \
     mkdir -p "$HOME/.npm-global" && \
     npm config set prefix "$HOME/.npm-global" && \
-    npm install -g @anthropic-ai/claude-code
-
-# Create wrapper scripts for claude commands that automatically add /claude directory
-RUN . $NVM_DIR/nvm.sh && \
+    npm install -g @anthropic-ai/claude-code && \
     CLAUDE_BIN=$(which claude) && \
     mv "$CLAUDE_BIN" "${CLAUDE_BIN}.real" && \
     echo '#!/bin/bash' > "$CLAUDE_BIN" && \
     echo "exec ${CLAUDE_BIN}.real --add-dir /claude \"\$@\"" >> "$CLAUDE_BIN" && \
-    chmod +x "$CLAUDE_BIN"
-
-# Create clauded wrapper that includes both --dangerously-skip-permissions and --add-dir /claude
-RUN . $NVM_DIR/nvm.sh && \
-    CLAUDE_BIN=$(which claude) && \
+    chmod +x "$CLAUDE_BIN" && \
     mkdir -p "$HOME/.local/bin" && \
     echo '#!/bin/bash' > "$HOME/.local/bin/clauded" && \
     echo "exec ${CLAUDE_BIN}.real --dangerously-skip-permissions --add-dir /claude \"\$@\"" >> "$HOME/.local/bin/clauded" && \
