@@ -98,6 +98,17 @@ ENV GOROOT=/usr/local/go
 ENV GOPATH=/home/developer/go
 ENV PATH="${GOROOT}/bin:${GOPATH}/bin:${PATH}"
 
+# Install TinyGo
+ARG TINYGO_VERSION=0.40.1
+RUN case "${TARGETARCH}" in \
+    "amd64") TINYGO_ARCH=amd64 ;; \
+    "arm64") TINYGO_ARCH=arm64 ;; \
+    *) echo "Unsupported architecture: ${TARGETARCH}" && exit 1 ;; \
+    esac && \
+    curl -fsSL "https://github.com/tinygo-org/tinygo/releases/download/v${TINYGO_VERSION}/tinygo_${TINYGO_VERSION}_${TINYGO_ARCH}.deb" -o /tmp/tinygo.deb && \
+    dpkg -i /tmp/tinygo.deb && \
+    rm /tmp/tinygo.deb
+
 # Create a new user with UID/GID 1000 to match host user
 RUN (groupadd -g 1000 developer 2>/dev/null || groupmod -n developer $(getent group 1000 | cut -d: -f1)) && \
     (useradd -m -u 1000 -g 1000 -s /bin/bash developer 2>/dev/null || \
