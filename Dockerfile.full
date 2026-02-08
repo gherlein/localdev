@@ -132,10 +132,9 @@ RUN mkdir -p /home/developer/go/{bin,src,pkg} && \
     chown -R 1000:1000 /home/developer
 
 # Install npm tools in small batches to avoid OOM (exit 137)
-# Batch 1: Essential tools
+# Batch 1: Essential tools (Claude Code uses npx, not global install)
 RUN . $NVM_DIR/nvm.sh && \
     NODE_OPTIONS="--max-old-space-size=8192" npm install -g \
-    @anthropic-ai/claude-code \
     typescript \
     ts-node && \
     npm cache clean --force
@@ -218,19 +217,13 @@ RUN echo 'export NVM_DIR=/usr/local/nvm' >> /etc/bash.bashrc && \
     echo '# Add default node to PATH for non-interactive use' >> /etc/bash.bashrc && \
     echo 'export PATH="$NVM_DIR/versions/node/$(cat $NVM_DIR/alias/default 2>/dev/null || echo "v22")/bin:$PATH" 2>/dev/null || true' >> /etc/bash.bashrc
 
-# Create wrapper scripts for claude commands that automatically add /claude directory
-RUN . $NVM_DIR/nvm.sh && \
-    CLAUDE_BIN=$(which claude) && \
-    mv "$CLAUDE_BIN" "${CLAUDE_BIN}.real" && \
-    echo '#!/bin/bash' > "$CLAUDE_BIN" && \
-    echo "exec ${CLAUDE_BIN}.real --add-dir /claude \"\$@\"" >> "$CLAUDE_BIN" && \
-    chmod +x "$CLAUDE_BIN"
-
-# Create clauded wrapper that includes both --dangerously-skip-permissions and --add-dir /claude
-RUN . $NVM_DIR/nvm.sh && \
-    CLAUDE_BIN=$(which claude) && \
+# Create Claude Code wrappers using npx (always uses latest version)
+RUN mkdir -p /usr/local/bin && \
+    echo '#!/bin/bash' > /usr/local/bin/claude && \
+    echo 'exec npx -y @anthropic-ai/claude-code@latest --add-dir /claude "$@"' >> /usr/local/bin/claude && \
+    chmod +x /usr/local/bin/claude && \
     echo '#!/bin/bash' > /usr/local/bin/clauded && \
-    echo "exec ${CLAUDE_BIN}.real --dangerously-skip-permissions --add-dir /claude \"\$@\"" >> /usr/local/bin/clauded && \
+    echo 'exec npx -y @anthropic-ai/claude-code@latest --dangerously-skip-permissions --add-dir /claude "$@"' >> /usr/local/bin/clauded && \
     chmod +x /usr/local/bin/clauded
 
 # Repeat for copilot

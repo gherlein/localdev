@@ -127,6 +127,17 @@ else
   echo "Info: $HOME/.claude does not exist, skipping mount" >&2
 fi
 
+# Handle npm cache directory mount for faster npx (Claude Code auto-updates)
+NPM_CACHE_DIR="$HOME/.npm-cache-localdev"
+mkdir -p "$NPM_CACHE_DIR" 2>/dev/null || true
+NPM_CACHE_MOUNT=()
+if [[ -d "$NPM_CACHE_DIR" ]] && [[ -w "$NPM_CACHE_DIR" ]]; then
+  NPM_CACHE_MOUNT=("-v" "$NPM_CACHE_DIR:/home/developer/.npm:rw")
+  echo "Mounting: $NPM_CACHE_DIR -> /home/developer/.npm (read-write)" >&2
+else
+  echo "Info: npm cache mount unavailable, npx will be slower on first use" >&2
+fi
+
 # Warn if there were permission errors
 if [[ $MOUNT_ERRORS -gt 0 ]]; then
   echo "Warning: $MOUNT_ERRORS mount(s) skipped due to permission issues" >&2
@@ -165,6 +176,7 @@ podman run -it --rm \
   "${GROUP_ADD_FLAG[@]}" \
   -v "$(pwd):/${DIR_NAME}" \
   "${CLAUDE_MOUNT[@]}" \
+  "${NPM_CACHE_MOUNT[@]}" \
   "${VOLUME_MOUNTS[@]}" \
   -e HOST_UID=$(id -u) \
   -e HOST_GID=$(id -g) \

@@ -159,19 +159,15 @@ USER developer
 # Update PATH to include user-local npm binaries
 ENV PATH="/home/developer/.npm-global/bin:${PATH}"
 
-# Install Claude Code and create wrappers (all in one step to avoid nvm conflicts)
-RUN . $NVM_DIR/nvm.sh && \
-    mkdir -p "$HOME/.npm-global" && \
+# Create Claude Code wrappers using npx (always uses latest version)
+RUN mkdir -p "$HOME/.npm-global" && \
     npm config set prefix "$HOME/.npm-global" && \
-    npm install -g @anthropic-ai/claude-code && \
-    CLAUDE_BIN=$(which claude) && \
-    mv "$CLAUDE_BIN" "${CLAUDE_BIN}.real" && \
-    echo '#!/bin/bash' > "$CLAUDE_BIN" && \
-    echo "exec ${CLAUDE_BIN}.real --add-dir /claude \"\$@\"" >> "$CLAUDE_BIN" && \
-    chmod +x "$CLAUDE_BIN" && \
     mkdir -p "$HOME/.local/bin" && \
+    echo '#!/bin/bash' > "$HOME/.local/bin/claude" && \
+    echo 'exec npx -y @anthropic-ai/claude-code@latest --add-dir /claude "$@"' >> "$HOME/.local/bin/claude" && \
+    chmod +x "$HOME/.local/bin/claude" && \
     echo '#!/bin/bash' > "$HOME/.local/bin/clauded" && \
-    echo "exec ${CLAUDE_BIN}.real --dangerously-skip-permissions --add-dir /claude \"\$@\"" >> "$HOME/.local/bin/clauded" && \
+    echo 'exec npx -y @anthropic-ai/claude-code@latest --dangerously-skip-permissions --add-dir /claude "$@"' >> "$HOME/.local/bin/clauded" && \
     chmod +x "$HOME/.local/bin/clauded"
 
 # install uv with retry logic
