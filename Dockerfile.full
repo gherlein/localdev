@@ -220,10 +220,10 @@ RUN echo 'export NVM_DIR=/usr/local/nvm' >> /etc/bash.bashrc && \
 # Create Claude Code wrappers using npx (always uses latest version)
 RUN mkdir -p /usr/local/bin && \
     echo '#!/bin/bash' > /usr/local/bin/claude && \
-    echo 'exec npx -y @anthropic-ai/claude-code@latest --add-dir /claude "$@"' >> /usr/local/bin/claude && \
+    echo 'exec npx -y @anthropic-ai/claude-code@latest "$@"' >> /usr/local/bin/claude && \
     chmod +x /usr/local/bin/claude && \
     echo '#!/bin/bash' > /usr/local/bin/clauded && \
-    echo 'exec npx -y @anthropic-ai/claude-code@latest --dangerously-skip-permissions --add-dir /claude "$@"' >> /usr/local/bin/clauded && \
+    echo 'exec npx -y @anthropic-ai/claude-code@latest --dangerously-skip-permissions "$@"' >> /usr/local/bin/clauded && \
     chmod +x /usr/local/bin/clauded
 
 # Repeat for copilot

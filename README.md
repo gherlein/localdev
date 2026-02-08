@@ -65,7 +65,7 @@ Two container variants are available:
 
 ### AI Assistants
 - **Claude Code CLI** (`@anthropic-ai/claude-code`)
-  - All invocations automatically include `--add-dir /claude` for global configuration
+  - Global `~/.claude` configuration is natively available inside the container
   - Convenient alias: `clauded` (runs with `--dangerously-skip-permissions`)
   - Alternative alias: `copilotd` (runs with `--allow-all-tools`)
 - **GitHub Copilot CLI** (`@github/copilot`)
@@ -215,7 +215,7 @@ The `localdev` script creates the following mount structure:
 ```
 Container Filesystem
 ├── /<project-name>/        # Your current directory (read-write)
-├── /claude/                # Host ~/.claude directory (read-write)
+├── /home/developer/.claude/ # Host ~/.claude directory (read-write, native path)
 │   ├── CLAUDE.md          # Global Claude instructions
 │   ├── settings.json      # Claude settings
 │   └── ...                # Other Claude configuration
@@ -227,18 +227,17 @@ Container Filesystem
 
 ### Global `.claude` Directory
 
-The script automatically mounts your host's `~/.claude` directory to `/claude` inside the container:
+The script automatically mounts your host's `~/.claude` directory to the native home directory location inside the container:
 
-- **Location**: `$HOME/.claude` → `/claude`
+- **Location**: `$HOME/.claude` → `/home/developer/.claude` (i.e. `~/.claude` inside the container)
 - **Permissions**: Read-write
-- **Auto-integration**: The Claude CLI wrapper automatically adds `--add-dir /claude` to all invocations
+- **Auto-create**: The directory is created on the host if it doesn't exist
+- **Native discovery**: Claude Code natively reads from `~/.claude`, so no special flags are needed
 
 This enables:
 - Global `CLAUDE.md` instructions available in all projects
 - Persistent Claude settings across sessions
 - Shared slash commands and configurations
-
-If `~/.claude` doesn't exist on the host, the mount is skipped with an info message.
 
 ### Mounting External Directories
 
@@ -261,7 +260,7 @@ Example:
 
 This creates:
 - `/myproject` → your current directory (read-write)
-- `/claude` → `~/.claude` (read-write)
+- `~/.claude` → host `~/.claude` (read-write, native path)
 - `/external/reference-code` → `/home/user/reference-code` (read-only)
 - `/external/docs` → `/home/user/docs` (read-only)
 
@@ -316,7 +315,7 @@ podman run --rm -it -v "/path/to/project:/workspace" localdev:latest bash
 podman run --rm -it \
   -v "$(pwd):/workspace" \
   -v "/path/to/libs:/libs:ro" \
-  -v "$HOME/.claude:/claude:rw" \
+  -v "$HOME/.claude:/home/developer/.claude:rw" \
   localdev:latest bash
 ```
 
@@ -325,10 +324,10 @@ podman run --rm -it \
 ### Using Claude Code
 
 ```bash
-# Standard invocation (automatically includes --add-dir /claude)
+# Standard invocation (finds ~/.claude config natively)
 claude
 
-# With convenient alias (dangerous mode + --add-dir /claude)
+# With convenient alias (dangerous mode)
 clauded
 
 # Or full command
@@ -338,7 +337,7 @@ claude --dangerously-skip-permissions
 copilotd
 ```
 
-**Note**: The `claude` command wrapper automatically adds `--add-dir /claude` to all invocations, ensuring your global Claude configuration is always available.
+**Note**: Claude Code natively reads from `~/.claude`, which is mounted from your host's `~/.claude` directory. No special flags are needed.
 
 ### Accessing External Mounts
 
@@ -393,7 +392,7 @@ lsusb
 cd /myproject
 
 # Your global CLAUDE.md is available
-cat /claude/CLAUDE.md
+cat ~/.claude/CLAUDE.md
 
 # Access external reference
 cat /external/api-reference/examples/auth.go
@@ -436,7 +435,7 @@ The container isolates AI assistants' file operations from your host system. Eve
 ```
 /
 ├── <project-name>/        # Dynamic working directory (your pwd)
-├── claude/                # Global Claude configuration (from ~/.claude)
+├── home/developer/.claude/ # Global Claude configuration (from host ~/.claude)
 │   ├── CLAUDE.md         # Global instructions
 │   ├── settings.json     # Claude settings
 │   └── commands/         # Custom slash commands
@@ -514,9 +513,9 @@ The `localdev` script runs the container with these options:
 - The container's `.bashrc` should load these automatically
 
 **Claude global config not loading:**
-- Verify `~/.claude` exists on your host
+- Verify `~/.claude` exists on your host (the launcher auto-creates it)
 - Check the mount message when starting the container
-- The `/claude` directory should be visible inside the container
+- Run `ls ~/.claude` inside the container to verify the mount
 
 **USB devices not accessible:**
 - USB passthrough only works on Linux

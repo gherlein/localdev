@@ -113,18 +113,19 @@ if [[ ! -r "$(pwd)" ]]; then
   exit 1
 fi
 
-# Handle .claude directory mount
+# Handle .claude directory mount (native location for Claude Code global config)
+mkdir -p "$HOME/.claude" 2>/dev/null || true
 CLAUDE_MOUNT=()
 if [[ -d "$HOME/.claude" ]]; then
   if [[ -r "$HOME/.claude" ]]; then
-    CLAUDE_MOUNT=("-v" "$HOME/.claude:/claude:rw")
-    echo "Mounting: $HOME/.claude -> /claude (read-write)" >&2
+    CLAUDE_MOUNT=("-v" "$HOME/.claude:/home/developer/.claude:rw")
+    echo "Mounting: $HOME/.claude -> /home/developer/.claude (read-write)" >&2
   else
     echo "Warning: $HOME/.claude exists but is not readable, skipping mount" >&2
     ((MOUNT_ERRORS++))
   fi
 else
-  echo "Info: $HOME/.claude does not exist, skipping mount" >&2
+  echo "Info: $HOME/.claude could not be created, skipping mount" >&2
 fi
 
 # Handle npm cache directory mount for faster npx (Claude Code auto-updates)

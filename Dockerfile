@@ -164,10 +164,10 @@ RUN mkdir -p "$HOME/.npm-global" && \
     npm config set prefix "$HOME/.npm-global" && \
     mkdir -p "$HOME/.local/bin" && \
     echo '#!/bin/bash' > "$HOME/.local/bin/claude" && \
-    echo 'exec npx -y @anthropic-ai/claude-code@latest --add-dir /claude "$@"' >> "$HOME/.local/bin/claude" && \
+    echo 'exec npx -y @anthropic-ai/claude-code@latest "$@"' >> "$HOME/.local/bin/claude" && \
     chmod +x "$HOME/.local/bin/claude" && \
     echo '#!/bin/bash' > "$HOME/.local/bin/clauded" && \
-    echo 'exec npx -y @anthropic-ai/claude-code@latest --dangerously-skip-permissions --add-dir /claude "$@"' >> "$HOME/.local/bin/clauded" && \
+    echo 'exec npx -y @anthropic-ai/claude-code@latest --dangerously-skip-permissions "$@"' >> "$HOME/.local/bin/clauded" && \
     chmod +x "$HOME/.local/bin/clauded"
 
 # install uv with retry logic
