@@ -18,7 +18,11 @@
       "Bash(podman machine set --memory 16384)",
       "Bash(podman machine start)",
       "Bash(podman info:*)",
-      "Bash(systemctl:*)"
+      "Bash(systemctl:*)",
+      "Bash(if [ -n \"$ANTHROPIC_API_KEY\" ])",
+      "Bash(then echo \"API key is set\")",
+      "Bash(else echo \"No API key environment variable\")",
+      "Bash(fi)"
     ],
     "deny": [],
     "ask": []

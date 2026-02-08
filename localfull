@@ -168,6 +168,13 @@ else
   echo "Info: USB device passthrough unavailable (not Linux or no USB devices)" >&2
 fi
 
+# Pass through ANTHROPIC_API_KEY if set (for Claude Code authentication)
+API_KEY_ENV=()
+if [[ -n "$ANTHROPIC_API_KEY" ]]; then
+  API_KEY_ENV=("-e" "ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY")
+  echo "Info: Passing through ANTHROPIC_API_KEY for Claude Code authentication" >&2
+fi
+
 # Run container with proper user mapping and dynamic working directory
 podman run -it --rm \
   --userns=keep-id \
@@ -178,6 +185,7 @@ podman run -it --rm \
   "${CLAUDE_MOUNT[@]}" \
   "${NPM_CACHE_MOUNT[@]}" \
   "${VOLUME_MOUNTS[@]}" \
+  "${API_KEY_ENV[@]}" \
   -e HOST_UID=$(id -u) \
   -e HOST_GID=$(id -g) \
   -w "/${DIR_NAME}" \
