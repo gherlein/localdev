@@ -217,14 +217,7 @@ RUN echo 'export NVM_DIR=/usr/local/nvm' >> /etc/bash.bashrc && \
     echo '# Add default node to PATH for non-interactive use' >> /etc/bash.bashrc && \
     echo 'export PATH="$NVM_DIR/versions/node/$(cat $NVM_DIR/alias/default 2>/dev/null || echo "v22")/bin:$PATH" 2>/dev/null || true' >> /etc/bash.bashrc
 
-# Create Claude Code wrappers using npx (always uses latest version)
-RUN mkdir -p /usr/local/bin && \
-    echo '#!/bin/bash' > /usr/local/bin/claude && \
-    echo 'exec npx -y @anthropic-ai/claude-code@latest "$@"' >> /usr/local/bin/claude && \
-    chmod +x /usr/local/bin/claude && \
-    echo '#!/bin/bash' > /usr/local/bin/clauded && \
-    echo 'exec npx -y @anthropic-ai/claude-code@latest --dangerously-skip-permissions "$@"' >> /usr/local/bin/clauded && \
-    chmod +x /usr/local/bin/clauded
+# Claude Code is installed via native installer after switching to developer user
 
 # Repeat for copilot
 RUN echo 'alias copilotd="claude --allow-all-tools"' >> /etc/bash.bashrc
@@ -245,6 +238,15 @@ RUN apt-get update && apt-get install -y \
 
 # Switch to developer user
 USER developer
+
+# Install Claude Code using native installer
+RUN curl -fsSL https://claude.ai/install.sh | sh
+
+# Create clauded wrapper for dangerously-skip-permissions mode
+RUN mkdir -p "$HOME/.local/bin" && \
+    echo '#!/bin/bash' > "$HOME/.local/bin/clauded" && \
+    echo 'exec claude --dangerously-skip-permissions "$@"' >> "$HOME/.local/bin/clauded" && \
+    chmod +x "$HOME/.local/bin/clauded"
 
 # install uv with retry logic
 RUN for i in 1 2 3; do \

@@ -159,15 +159,17 @@ USER developer
 # Update PATH to include user-local npm binaries
 ENV PATH="/home/developer/.npm-global/bin:${PATH}"
 
-# Create Claude Code wrappers using npx (always uses latest version)
+# Configure npm prefix for developer user
 RUN mkdir -p "$HOME/.npm-global" && \
-    npm config set prefix "$HOME/.npm-global" && \
-    mkdir -p "$HOME/.local/bin" && \
-    echo '#!/bin/bash' > "$HOME/.local/bin/claude" && \
-    echo 'exec npx -y @anthropic-ai/claude-code@latest "$@"' >> "$HOME/.local/bin/claude" && \
-    chmod +x "$HOME/.local/bin/claude" && \
+    npm config set prefix "$HOME/.npm-global"
+
+# Install Claude Code using native installer
+RUN curl -fsSL https://claude.ai/install.sh | sh
+
+# Create clauded wrapper for dangerously-skip-permissions mode
+RUN mkdir -p "$HOME/.local/bin" && \
     echo '#!/bin/bash' > "$HOME/.local/bin/clauded" && \
-    echo 'exec npx -y @anthropic-ai/claude-code@latest --dangerously-skip-permissions "$@"' >> "$HOME/.local/bin/clauded" && \
+    echo 'exec claude --dangerously-skip-permissions "$@"' >> "$HOME/.local/bin/clauded" && \
     chmod +x "$HOME/.local/bin/clauded"
 
 # install uv with retry logic
