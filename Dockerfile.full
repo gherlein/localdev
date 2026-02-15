@@ -240,7 +240,7 @@ RUN apt-get update && apt-get install -y \
 USER developer
 
 # Install Claude Code using native installer
-RUN curl -fsSL https://claude.ai/install.sh | sh
+RUN curl -fsSL https://claude.ai/install.sh | bash
 
 # Create clauded wrapper for dangerously-skip-permissions mode
 RUN mkdir -p "$HOME/.local/bin" && \

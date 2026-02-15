@@ -164,7 +164,7 @@ RUN mkdir -p "$HOME/.npm-global" && \
     npm config set prefix "$HOME/.npm-global"
 
 # Install Claude Code using native installer
-RUN curl -fsSL https://claude.ai/install.sh | sh
+RUN curl -fsSL https://claude.ai/install.sh | bash
 
 # Create clauded wrapper for dangerously-skip-permissions mode
 RUN mkdir -p "$HOME/.local/bin" && \
