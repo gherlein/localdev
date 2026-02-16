@@ -27,6 +27,7 @@ RUN apt-get update && apt-get install -y \
     tmux \
     mg \
     rsync \
+    zoxide \
     ca-certificates && rm -rf /var/lib/apt/lists/*
 
 # Install Node.js LTS only using nvm
