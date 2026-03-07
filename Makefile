@@ -28,7 +28,7 @@ help:
 	@echo "  no-cache-full  - Rebuild full container without cache"
 	@echo "  run            - Run default container (localdev)"
 	@echo "  run-full       - Run full container (localfull)"
-	@echo "  install        - Install both launchers to ~/bin"
+	@echo "  install        - Install all launchers to ~/bin"
 	@echo "  pre            - Install podman (apt)"
 
 all: default full
@@ -37,7 +37,7 @@ default:
 	podman build -t localdev:latest --format docker --memory=16g --build-arg TARGETARCH=${TARGETARCH} --pull .
 
 full:
-	podman build -t localfull:latest --format docker --memory=16g --build-arg TARGETARCH=${TARGETARCH} --pull -f Dockerfile.full .
+	podman build -t localfull:latest --format docker --memory=16g --build-arg TARGETARCH=${TARGETARCH} --pull -f Containerfile.full .
 
 no-cache: no-cache-default no-cache-full
 
@@ -45,7 +45,7 @@ no-cache-default:
 	podman build -t localdev:latest --format docker --no-cache --memory=16g --build-arg TARGETARCH=${TARGETARCH} --pull .
 
 no-cache-full:
-	podman build -t localfull:latest --format docker --no-cache --memory=16g --build-arg TARGETARCH=${TARGETARCH} --pull -f Dockerfile.full .
+	podman build -t localfull:latest --format docker --no-cache --memory=16g --build-arg TARGETARCH=${TARGETARCH} --pull -f Containerfile.full .
 
 run:
 	podman run --rm -it -v "$(shell pwd):/workspace" localdev bash
@@ -59,8 +59,9 @@ pre:
 install:
 	@if podman image exists localdev:latest 2>/dev/null; then \
 		cp localdev ~/bin && echo "Installed localdev to ~/bin"; \
+		cp localdevnet ~/bin && echo "Installed localdevnet to ~/bin"; \
 	else \
-		echo "Warning: localdev:latest image not found, skipping localdev install (run 'make default' first)"; \
+		echo "Warning: localdev:latest image not found, skipping localdev/localdevnet install (run 'make default' first)"; \
 	fi
 	@if podman image exists localfull:latest 2>/dev/null; then \
 		cp localfull ~/bin && echo "Installed localfull to ~/bin"; \

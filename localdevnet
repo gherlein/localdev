@@ -1,50 +1,34 @@
 #!/bin/bash
-# localdev launcher - lightweight container (no Java, single Node LTS) - DEFAULT
+# localdev launcher - lightweight container (no Java, single Node LTS) with host networking
 
-# Get the current directory name
 DIR_NAME=$(basename "$(pwd)")
 
-# Initialize array for additional volume mounts
 VOLUME_MOUNTS=()
-
-# Initialize array for device mounts
 DEVICE_MOUNTS=()
-
-# Track if we had any mount errors
 MOUNT_ERRORS=0
+MOUNTS_CONTENT="# localdevnet mount map\n# HOST PATH -> CONTAINER PATH (mode)\n"
 
-# Function to add a device mount
 add_device_mount() {
   local path="$1"
-
-  # Verify device exists
   if [[ ! -e "$path" ]]; then
     echo "Warning: Skipping non-existent device '$path'" >&2
     return 1
   fi
-
-  # Verify it's a device (character or block device)
   if [[ ! -c "$path" && ! -b "$path" ]]; then
     echo "Warning: '$path' is not a device file (not char or block device)" >&2
     return 1
   fi
-
-  # Check readability
   if [[ ! -r "$path" ]]; then
     echo "Warning: Skipping unreadable device '$path' (permission denied)" >&2
     ((MOUNT_ERRORS++))
     return 1
   fi
-
   DEVICE_MOUNTS+=("--device" "$path")
-  echo "Device passthrough: $path" >&2
+  echo "Device passthrough:    $path" >&2
 }
 
-# Function to add a read-only mount
-add_ro_mount() {
+resolve_path() {
   local path="$1"
-
-  # Handle relative paths by converting to absolute
   if [[ ! "$path" = /* ]]; then
     path="$(cd "$(dirname "$path")" 2>/dev/null && pwd)/$(basename "$path")"
     if [[ $? -ne 0 ]]; then
@@ -52,52 +36,98 @@ add_ro_mount() {
       return 1
     fi
   fi
-
-  # Verify directory exists
   if [[ ! -d "$path" ]]; then
     echo "Warning: Skipping non-existent directory '$path'" >&2
     return 1
   fi
-
-  # Normalize path using realpath if available, otherwise use Python
   if command -v realpath >/dev/null 2>&1; then
     path=$(realpath "$path" 2>/dev/null) || path=$(python3 -c "import os; print(os.path.realpath('$path'))" 2>/dev/null)
   else
     path=$(python3 -c "import os; print(os.path.realpath('$path'))" 2>/dev/null)
   fi
-
   if [[ -z "$path" ]]; then
     echo "Warning: Cannot normalize path '$1'" >&2
     return 1
   fi
+  echo "$path"
+}
 
+add_ro_mount() {
+  local path
+  path=$(resolve_path "$1") || return 1
   if [[ ! -r "$path" ]]; then
     echo "Warning: Skipping unreadable directory '$path' (permission denied)" >&2
     ((MOUNT_ERRORS++))
     return 1
   fi
-
-  local dir_name=$(basename "$path")
-
+  local dir_name
+  dir_name=$(basename "$path")
   VOLUME_MOUNTS+=("-v" "${path}:/external/${dir_name}:ro")
-  echo "Mounting: $path -> /external/${dir_name} (read-only)" >&2
+  echo "Mounting (read-only):  $path -> /external/${dir_name}" >&2
+  MOUNTS_CONTENT+="$path -> /external/${dir_name} (read-only)\n"
 }
 
-# Process command-line arguments
-for arg in "$@"; do
-  if [[ "$arg" == /dev/* ]]; then
+add_rw_mount() {
+  local path
+  path=$(resolve_path "$1") || return 1
+  if [[ ! -r "$path" ]]; then
+    echo "Warning: Skipping unreadable directory '$path' (permission denied)" >&2
+    ((MOUNT_ERRORS++))
+    return 1
+  fi
+  local dir_name
+  dir_name=$(basename "$path")
+  VOLUME_MOUNTS+=("-v" "${path}:/external/${dir_name}:rw")
+  echo "Mounting (read-write): $path -> /external/${dir_name}" >&2
+  MOUNTS_CONTENT+="$path -> /external/${dir_name} (read-write)\n"
+}
+
+# Process command-line arguments.
+# Flags: -rw <path> mounts read-write, -ro <path> or bare <path> mounts read-only.
+# /dev/* paths are always treated as device passthroughs regardless of flag.
+args=("$@")
+i=0
+while [[ $i -lt ${#args[@]} ]]; do
+  arg="${args[$i]}"
+  if [[ "$arg" == "-rw" || "$arg" == "-ro" ]]; then
+    ((i++))
+    if [[ $i -ge ${#args[@]} ]]; then
+      echo "Error: $arg requires a path argument" >&2
+      exit 1
+    fi
+    next="${args[$i]}"
+    if [[ "$next" == /dev/* ]]; then
+      add_device_mount "$next"
+    elif [[ "$arg" == "-rw" ]]; then
+      add_rw_mount "$next"
+    else
+      add_ro_mount "$next"
+    fi
+  elif [[ "$arg" == /dev/* ]]; then
     add_device_mount "$arg"
   else
     add_ro_mount "$arg"
   fi
+  ((i++))
 done
 
-# Process LOCALDEV_MOUNTS environment variable
+# Process LOCALDEV_MOUNTS environment variable.
+# Format: semicolon-separated entries. Prefix with rw: for read-write, ro: or no prefix for read-only.
+# Example: export LOCALDEV_MOUNTS="rw:/path/to/writable;/path/to/readonly"
 if [[ -n "$LOCALDEV_MOUNTS" ]]; then
   IFS=';' read -ra MOUNT_PATHS <<< "$LOCALDEV_MOUNTS"
-  for path in "${MOUNT_PATHS[@]}"; do
-    path=$(echo "$path" | xargs)
-    if [[ -n "$path" ]]; then
+  for entry in "${MOUNT_PATHS[@]}"; do
+    entry=$(echo "$entry" | xargs)
+    [[ -z "$entry" ]] && continue
+    if [[ "$entry" == rw:* ]]; then
+      path="${entry#rw:}"
+      if [[ "$path" == /dev/* ]]; then
+        add_device_mount "$path"
+      else
+        add_rw_mount "$path"
+      fi
+    else
+      path="${entry#ro:}"
       if [[ "$path" == /dev/* ]]; then
         add_device_mount "$path"
       else
@@ -107,7 +137,6 @@ if [[ -n "$LOCALDEV_MOUNTS" ]]; then
   done
 fi
 
-# Verify current directory is accessible
 if [[ ! -r "$(pwd)" ]]; then
   echo "Error: Current directory is not readable. Cannot mount workspace." >&2
   exit 1
@@ -119,7 +148,8 @@ CLAUDE_MOUNT=()
 if [[ -d "$HOME/.claude" ]]; then
   if [[ -r "$HOME/.claude" ]]; then
     CLAUDE_MOUNT=("-v" "$HOME/.claude:/home/developer/.claude:rw")
-    echo "Mounting: $HOME/.claude -> /home/developer/.claude (read-write)" >&2
+    echo "Mounting (read-write): $HOME/.claude -> /home/developer/.claude" >&2
+    MOUNTS_CONTENT+="$HOME/.claude -> /home/developer/.claude (read-write)\n"
   else
     echo "Warning: $HOME/.claude exists but is not readable, skipping mount" >&2
     ((MOUNT_ERRORS++))
@@ -134,12 +164,11 @@ mkdir -p "$NPM_CACHE_DIR" 2>/dev/null || true
 NPM_CACHE_MOUNT=()
 if [[ -d "$NPM_CACHE_DIR" ]] && [[ -w "$NPM_CACHE_DIR" ]]; then
   NPM_CACHE_MOUNT=("-v" "$NPM_CACHE_DIR:/home/developer/.npm:rw")
-  echo "Mounting: $NPM_CACHE_DIR -> /home/developer/.npm (read-write)" >&2
+  echo "Mounting (read-write): $NPM_CACHE_DIR -> /home/developer/.npm" >&2
 else
   echo "Info: npm cache mount unavailable, npx will be slower on first use" >&2
 fi
 
-# Warn if there were permission errors
 if [[ $MOUNT_ERRORS -gt 0 ]]; then
   echo "Warning: $MOUNT_ERRORS mount(s) skipped due to permission issues" >&2
 fi
@@ -154,13 +183,11 @@ except:
     print('false')
 " 2>/dev/null)
 
-# Build group-add flag conditionally (skip if remote mode)
 GROUP_ADD_FLAG=()
 if [[ "$IS_REMOTE" != "true" ]]; then
   GROUP_ADD_FLAG=("--group-add" "keep-groups")
 fi
 
-# Build USB device flag conditionally (only on Linux with /dev/bus/usb)
 USB_DEVICE_FLAG=()
 if [[ -d "/dev/bus/usb" ]]; then
   USB_DEVICE_FLAG=("--device" "/dev/bus/usb")
@@ -169,14 +196,18 @@ else
   echo "Info: USB device passthrough unavailable (not Linux or no USB devices)" >&2
 fi
 
-# Pass through ANTHROPIC_API_KEY if set (for Claude Code authentication)
 API_KEY_ENV=()
 if [[ -n "$ANTHROPIC_API_KEY" ]]; then
   API_KEY_ENV=("-e" "ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY")
   echo "Info: Passing through ANTHROPIC_API_KEY for Claude Code authentication" >&2
 fi
 
-# Run container with proper user mapping and dynamic working directory
+# Write the mounts map to a temp file; it will be mounted as ~/mounts inside the container
+MOUNTS_TMPFILE=$(mktemp)
+printf "%b" "$MOUNTS_CONTENT" > "$MOUNTS_TMPFILE"
+
+echo "Mounting (read-write): $(pwd) -> /${DIR_NAME} (workspace)" >&2
+
 podman run -it --rm \
   --userns=keep-id \
   "${USB_DEVICE_FLAG[@]}" \
@@ -187,9 +218,12 @@ podman run -it --rm \
   "${NPM_CACHE_MOUNT[@]}" \
   "${VOLUME_MOUNTS[@]}" \
   "${API_KEY_ENV[@]}" \
+  -v "${MOUNTS_TMPFILE}:/home/developer/mounts:ro" \
   -e HOST_UID=$(id -u) \
   -e HOST_GID=$(id -g) \
   -w "/${DIR_NAME}" \
   --network host \
   localdev:latest \
   bash
+
+rm -f "$MOUNTS_TMPFILE"

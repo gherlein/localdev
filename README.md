@@ -12,8 +12,9 @@ Two container variants are available:
 
 | Container | Script | Image | Description |
 |-----------|--------|-------|-------------|
-| **localdev** (default) | `localdev` | `localdev:latest` | Lightweight, fast-starting container with Node.js LTS, Go, and essential tools |
-| **localfull** | `localfull` | `localfull:latest` | Full-featured container with Java 17, Atlassian CLI, multiple Node.js versions |
+| **localdev** (default) | `localdev` | `localdev:latest` | Lightweight, fast-starting container with Node.js LTS, Go, and essential tools. Uses isolated container networking. |
+| **localdevnet** | `localdevnet` | `localdev:latest` | Same as `localdev` but runs with `--network host`, sharing the host's network stack directly. Use when the container needs to reach localhost services or LAN addresses. |
+| **localfull** | `localfull` | `localfull:latest` | Full-featured container with Java 17, Atlassian CLI, multiple Node.js versions. Uses isolated container networking. |
 
 ### What's in localdev (default)
 - Debian Bookworm slim base (fast startup)
@@ -165,36 +166,45 @@ if [ "$ARCH" = "x86_64" ]; then TARGETARCH=amd64; else TARGETARCH=arm64; fi
 podman build -t localdev:latest --memory=16g --build-arg TARGETARCH=$TARGETARCH --pull .
 
 # Build full container
-podman build -t localfull:latest --memory=16g --build-arg TARGETARCH=$TARGETARCH --pull -f Dockerfile.full .
+podman build -t localfull:latest --memory=16g --build-arg TARGETARCH=$TARGETARCH --pull -f Containerfile.full .
 ```
 
 ## Using the Container
 
-### The `localdev` and `localfull` Scripts
+### Launcher Scripts
 
-Both scripts provide convenient access to their respective containers with automatic directory mounting and support for read-only external directories.
+Three scripts provide convenient access to the containers with automatic directory mounting and support for read-only external directories.
 
-- **`localdev`** - launches the lightweight container (default)
-- **`localfull`** - launches the full-featured container with Java and Atlassian CLI
+- **`localdev`** - launches the lightweight `localdev:latest` container with isolated networking (default)
+- **`localdevnet`** - launches the same `localdev:latest` container with `--network host`, sharing the host's network stack; use this when the container needs to connect to services running on localhost or your LAN
+- **`localfull`** - launches the full-featured `localfull:latest` container (Java, Atlassian CLI, multiple Node versions) with isolated networking
 
 #### Installation
 ```bash
-# Copy both to your bin directory
+# Copy all launchers to your bin directory
 make install
 
 # Or manually
-cp localdev localfull ~/bin/
-chmod +x ~/bin/localdev ~/bin/localfull
+cp localdev localdevnet localfull ~/bin/
+chmod +x ~/bin/localdev ~/bin/localdevnet ~/bin/localfull
 ```
 
 #### Basic Usage
 
 ```bash
-# Run in current directory
+# Run in current directory (isolated networking)
 ./localdev
 
-# Or if installed
+# Run with host networking (reach localhost/LAN services)
+./localdevnet
+
+# Run full container (Java, Atlassian CLI, multiple Node versions)
+./localfull
+
+# Or if installed to ~/bin
 localdev
+localdevnet
+localfull
 ```
 
 This mounts your current working directory into the container at `/<directory-name>`.
@@ -241,54 +251,86 @@ This enables:
 
 ### Mounting External Directories
 
-The script supports mounting additional directories as read-only inside the container at `/external/<directory-name>`.
+The launchers mount additional directories under `/external/<directory-name>` inside the container. Directories are mounted read-only by default. Use `-rw` to mount a directory read-write.
+
+Each launcher prints a summary of every mount before starting the container, and writes a `~/mounts` file inside the container with the full host→container path mapping.
+
+#### Mount Flags
+
+| Syntax | Effect |
+|--------|--------|
+| `./localdev /path/to/dir` | Mount read-only (default) |
+| `./localdev -ro /path/to/dir` | Mount read-only (explicit) |
+| `./localdev -rw /path/to/dir` | Mount read-write |
+
+Flags apply to the single path that immediately follows them. Multiple paths and flags may be mixed freely.
 
 #### Method 1: Command Line Arguments
 
 ```bash
-# Mount single external directory
-./localdev /path/to/external/repo
+# Read-only (default) — same as before
+./localdev /path/to/reference
 
-# Mount multiple external directories
-./localdev /path/to/repo1 /path/to/repo2 /path/to/repo3
+# Explicit read-only
+./localdev -ro /path/to/reference
+
+# Read-write
+./localdev -rw /path/to/shared-output
+
+# Mixed: one read-only, one read-write
+./localdev /path/to/reference -rw /path/to/shared-output
+
+# Multiple paths
+./localdev /path/to/repo1 /path/to/repo2 -rw /path/to/shared
 ```
 
-Example:
-```bash
-./localdev /home/user/reference-code /home/user/docs
+Example output:
 ```
-
-This creates:
-- `/myproject` → your current directory (read-write)
-- `~/.claude` → host `~/.claude` (read-write, native path)
-- `/external/reference-code` → `/home/user/reference-code` (read-only)
-- `/external/docs` → `/home/user/docs` (read-only)
+Mounting (read-only):  /home/user/reference-code -> /external/reference-code
+Mounting (read-write): /home/user/shared-output -> /external/shared-output
+Mounting (read-write): /home/user/.claude -> /home/developer/.claude
+Mounting (read-write): /home/user/myproject -> /myproject (workspace)
+```
 
 #### Method 2: Environment Variable
 
-Set the `LOCALDEV_MOUNTS` environment variable with semicolon-separated paths:
+Set `LOCALDEV_MOUNTS` with semicolon-separated entries. Prefix with `rw:` for read-write, or `ro:` / no prefix for read-only.
 
 ```bash
-# Single session
-LOCALDEV_MOUNTS="/path/to/repo1;/path/to/repo2" ./localdev
+# Read-only entries (no prefix or ro: prefix)
+export LOCALDEV_MOUNTS="/home/user/reference-code;ro:/home/user/docs"
 
-# Persistent (add to ~/.bashrc or ~/.zshrc)
-export LOCALDEV_MOUNTS="/home/user/reference-code;/home/user/docs"
+# Read-write entry
+export LOCALDEV_MOUNTS="rw:/home/user/shared-output"
+
+# Mixed
+export LOCALDEV_MOUNTS="/home/user/reference;rw:/home/user/shared-output"
+
 ./localdev
 ```
 
 #### Combining Both Methods
 
-You can use both command line arguments and the environment variable together:
-
 ```bash
 export LOCALDEV_MOUNTS="/home/user/common-libs"
-./localdev /home/user/project-specific-ref
+./localdev -rw /home/user/project-specific-output
+```
+
+#### The `~/mounts` File
+
+After launching, a file at `~/mounts` inside the container lists every external mount:
+
+```
+# localdev mount map
+# HOST PATH -> CONTAINER PATH (mode)
+/home/user/reference-code -> /external/reference-code (read-only)
+/home/user/shared-output -> /external/shared-output (read-write)
+/home/user/.claude -> /home/developer/.claude (read-write)
 ```
 
 #### Requirements for External Mounts
 - Paths must be absolute (not relative)
-- Directories must exist
+- Directories must exist and be readable
 - Invalid paths are skipped with warnings
 
 ### Manual Container Usage
@@ -410,7 +452,7 @@ npm test
 
 ### Container Isolation
 - **Filesystem**: Only mounted directories are accessible
-- **Network**: Isolated container network
+- **Network**: Isolated container network (`localdev`, `localfull`) or host network (`localdevnet`)
 - **User**: Runs as non-root `developer` user (UID/GID 1000)
 - **User Namespace**: `--userns=keep-id` ensures files created in container have correct host ownership
 - **Cleanup**: Use `--rm` flag for automatic container removal
@@ -480,6 +522,10 @@ The `localdev` script runs the container with these options:
 | `--device /dev/bus/usb` | Enables USB device passthrough (Linux only, automatically skipped on macOS) |
 | `--group-add keep-groups` | Preserves host group memberships |
 | `-e HOST_UID/HOST_GID` | Passes host user IDs for reference |
+| `--network host` | (`localdevnet` only) Shares host network stack instead of isolated container network |
+| `-v <path>:/external/<name>:ro` | External directory mounted read-only (default, or explicit `-ro` flag) |
+| `-v <path>:/external/<name>:rw` | External directory mounted read-write (`-rw` flag) |
+| `-v <tmpfile>:~/mounts:ro` | Host→container path map file, readable at `~/mounts` inside the container |
 
 ## Troubleshooting
 

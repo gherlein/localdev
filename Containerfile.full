@@ -262,35 +262,43 @@ ENV PATH="/home/developer/.local/bin:${PATH}"
 RUN /home/developer/.local/bin/uv tool install md2pdf
 
 # Install Go development tools and linters (split into groups for better reliability)
+# go clean -cache after each group to avoid filling disk with build artifacts
 RUN go install golang.org/x/tools/cmd/goimports@latest && \
     go install golang.org/x/tools/cmd/godoc@latest && \
     go install mvdan.cc/gofumpt@latest && \
-    go install golang.org/x/vuln/cmd/govulncheck@latest
+    go install golang.org/x/vuln/cmd/govulncheck@latest && \
+    go clean -cache
 
 RUN go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest && \
     go install honnef.co/go/tools/cmd/staticcheck@latest && \
-    go install github.com/go-delve/delve/cmd/dlv@latest
+    go install github.com/go-delve/delve/cmd/dlv@latest && \
+    go clean -cache
 
 RUN go install github.com/fatih/gomodifytags@latest && \
     go install github.com/josharian/impl@latest && \
     go install github.com/cweill/gotests/gotests@latest && \
-    go install github.com/google/wire/cmd/wire@latest
+    go install github.com/google/wire/cmd/wire@latest && \
+    go clean -cache
 
 # Install remaining tools (skip problematic ones if they fail)
 RUN go install github.com/segmentio/golines@latest || echo "Warning: Failed to install golines" && \
-    go install github.com/golang/mock/mockgen@latest || echo "Warning: Failed to install mockgen"
+    go install github.com/golang/mock/mockgen@latest || echo "Warning: Failed to install mockgen" && \
+    go clean -cache
 
 # Install Protocol Buffer tools (buf, protoc-gen-go)
 RUN go install github.com/bufbuild/buf/cmd/buf@latest && \
-    go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+    go install google.golang.org/protobuf/cmd/protoc-gen-go@latest && \
+    go clean -cache
 
 # Install NATS server and CLI
 RUN go install github.com/nats-io/nats-server/v2@latest && \
-    go install github.com/nats-io/natscli/nats@latest
+    go install github.com/nats-io/natscli/nats@latest && \
+    go clean -cache
 
 # Install Go development utilities (air, pkgsite, stress)
 RUN go install github.com/air-verse/air@latest && \
     go install golang.org/x/pkgsite/cmd/pkgsite@latest && \
-    go install golang.org/x/tools/cmd/stress@latest
+    go install golang.org/x/tools/cmd/stress@latest && \
+    go clean -cache
 
 CMD ["/bin/bash"]
