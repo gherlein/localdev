@@ -28,7 +28,6 @@ RUN apt-get update && apt-get install -y \
     mg \
     rsync \
     zoxide \
-    stow \
     ca-certificates && rm -rf /var/lib/apt/lists/*
 
 # Install Node.js LTS only using nvm
@@ -146,6 +145,9 @@ RUN echo 'export NVM_DIR=/usr/local/nvm' >> /etc/bash.bashrc && \
     echo '# Alias emacs to mg' >> /etc/bash.bashrc && \
     echo 'alias emacs=mg' >> /etc/bash.bashrc
 
+# Install stow for dotfiles management
+RUN apt-get update && apt-get install -y stow && rm -rf /var/lib/apt/lists/*
+
 # Stow dotfiles and source user bash config at shell startup
 RUN echo '# Stow dotfiles from /external/dotfiles if present (bash package handled separately)' >> /etc/bash.bashrc && \
     echo 'if [[ -d /external/dotfiles ]]; then' >> /etc/bash.bashrc && \
@@ -156,6 +158,7 @@ RUN echo '# Stow dotfiles from /external/dotfiles if present (bash package handl
     echo '  done' >> /etc/bash.bashrc && \
     echo '  unset _dotpkg_dir _dotpkg' >> /etc/bash.bashrc && \
     echo '  [[ -f /external/dotfiles/bash/.bashrc ]] && source /external/dotfiles/bash/.bashrc' >> /etc/bash.bashrc && \
+    echo '  [[ -f /external/dotfiles/bash/.bash_profile ]] && source /external/dotfiles/bash/.bash_profile' >> /etc/bash.bashrc && \
     echo 'fi' >> /etc/bash.bashrc
 
 WORKDIR /workspace
@@ -180,12 +183,6 @@ RUN mkdir -p "$HOME/.npm-global" && \
 
 # Install Claude Code using native installer
 RUN curl -fsSL https://claude.ai/install.sh | bash
-
-# Create clauded wrapper for dangerously-skip-permissions mode
-RUN mkdir -p "$HOME/.local/bin" && \
-    echo '#!/bin/bash' > "$HOME/.local/bin/clauded" && \
-    echo 'exec claude --dangerously-skip-permissions "$@"' >> "$HOME/.local/bin/clauded" && \
-    chmod +x "$HOME/.local/bin/clauded"
 
 # install uv with retry logic
 RUN for i in 1 2 3; do \

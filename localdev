@@ -201,6 +201,15 @@ if [[ "$IS_REMOTE" != "true" ]]; then
   GROUP_ADD_FLAG=("--group-add" "keep-groups")
 fi
 
+# --userns=keep-id on Linux triggers slow ID-mapped layer copies when host UID != container UID.
+# Skip it on Linux when the host UID already matches the container developer UID (1000).
+USERNS_FLAG=()
+if [[ "$(uname -s)" == "Linux" && "$(id -u)" == "1000" ]]; then
+  echo "Info: Skipping --userns=keep-id on Linux (host UID matches container UID 1000)" >&2
+else
+  USERNS_FLAG=("--userns=keep-id")
+fi
+
 USB_DEVICE_FLAG=()
 if [[ -d "/dev/bus/usb" ]]; then
   USB_DEVICE_FLAG=("--device" "/dev/bus/usb")
@@ -222,7 +231,7 @@ printf "%b" "$MOUNTS_CONTENT" > "$MOUNTS_TMPFILE"
 echo "Mounting (read-write): $(pwd) -> /${DIR_NAME} (workspace)" >&2
 
 podman run -it --rm \
-  --userns=keep-id \
+  "${USERNS_FLAG[@]}" \
   "${USB_DEVICE_FLAG[@]}" \
   "${DEVICE_MOUNTS[@]}" \
   "${GROUP_ADD_FLAG[@]}" \
