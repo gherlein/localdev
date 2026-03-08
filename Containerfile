@@ -28,6 +28,8 @@ RUN apt-get update && apt-get install -y \
     mg \
     rsync \
     zoxide \
+    keychain \
+    direnv \
     ca-certificates && rm -rf /var/lib/apt/lists/*
 
 # Install Node.js LTS only using nvm
