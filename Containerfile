@@ -28,6 +28,7 @@ RUN apt-get update && apt-get install -y \
     mg \
     rsync \
     zoxide \
+    stow \
     ca-certificates && rm -rf /var/lib/apt/lists/*
 
 # Install Node.js LTS only using nvm
@@ -144,6 +145,18 @@ RUN echo 'export NVM_DIR=/usr/local/nvm' >> /etc/bash.bashrc && \
     echo 'export PATH="$HOME/.npm-global/bin:$PATH"' >> /etc/bash.bashrc && \
     echo '# Alias emacs to mg' >> /etc/bash.bashrc && \
     echo 'alias emacs=mg' >> /etc/bash.bashrc
+
+# Stow dotfiles and source user bash config at shell startup
+RUN echo '# Stow dotfiles from /external/dotfiles if present (bash package handled separately)' >> /etc/bash.bashrc && \
+    echo 'if [[ -d /external/dotfiles ]]; then' >> /etc/bash.bashrc && \
+    echo '  for _dotpkg_dir in /external/dotfiles/*/; do' >> /etc/bash.bashrc && \
+    echo '    _dotpkg=$(basename "$_dotpkg_dir")' >> /etc/bash.bashrc && \
+    echo '    [[ "$_dotpkg" == "bash" ]] && continue' >> /etc/bash.bashrc && \
+    echo '    stow --no-folding --dir=/external/dotfiles --target="$HOME" "$_dotpkg" 2>/dev/null || true' >> /etc/bash.bashrc && \
+    echo '  done' >> /etc/bash.bashrc && \
+    echo '  unset _dotpkg_dir _dotpkg' >> /etc/bash.bashrc && \
+    echo '  [[ -f /external/dotfiles/bash/.bashrc ]] && source /external/dotfiles/bash/.bashrc' >> /etc/bash.bashrc && \
+    echo 'fi' >> /etc/bash.bashrc
 
 WORKDIR /workspace
 
