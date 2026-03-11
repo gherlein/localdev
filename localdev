@@ -171,6 +171,19 @@ else
   echo "Info: $HOME/.claude could not be created, skipping mount" >&2
 fi
 
+# Handle host ~/bin mount for developer tools available inside the container
+HOST_BIN_MOUNT=()
+if [[ -d "$HOME/bin" ]]; then
+  if [[ -r "$HOME/bin" ]]; then
+    HOST_BIN_MOUNT=("-v" "$HOME/bin:/home/developer/bin:ro")
+    echo "Mounting (read-only):  $HOME/bin -> /home/developer/bin" >&2
+    MOUNTS_CONTENT+="$HOME/bin -> /home/developer/bin (read-only)\n"
+  else
+    echo "Warning: $HOME/bin exists but is not readable, skipping mount" >&2
+    ((MOUNT_ERRORS++))
+  fi
+fi
+
 # Handle npm cache directory mount for faster npx (Claude Code auto-updates)
 NPM_CACHE_DIR="$HOME/.npm-cache-localdev"
 mkdir -p "$NPM_CACHE_DIR" 2>/dev/null || true
@@ -238,6 +251,7 @@ podman run -it --rm \
   -v "$(pwd):/${DIR_NAME}" \
   "${DOTFILES_MOUNT[@]}" \
   "${CLAUDE_MOUNT[@]}" \
+  "${HOST_BIN_MOUNT[@]}" \
   "${NPM_CACHE_MOUNT[@]}" \
   "${VOLUME_MOUNTS[@]}" \
   "${API_KEY_ENV[@]}" \
@@ -246,6 +260,6 @@ podman run -it --rm \
   -e HOST_GID=$(id -g) \
   -w "/${DIR_NAME}" \
   localdev:latest \
-  bash
+  bash -c 'if command -v tmux >/dev/null 2>&1; then tmux new-session -d -s dev && tmux split-window -t dev -v -p 20 && tmux select-pane -t dev:0.0 && tmux send-keys -t dev:0.0 claude Enter && exec tmux attach-session -t dev; else exec bash; fi'
 
 rm -f "$MOUNTS_TMPFILE"
