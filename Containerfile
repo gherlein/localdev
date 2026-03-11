@@ -200,4 +200,11 @@ RUN go install golang.org/x/tools/cmd/goimports@latest && \
     go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest && \
     go install github.com/go-delve/delve/cmd/dlv@latest
 
+# Switch back to root so the entrypoint can remap UID/GID at runtime
+USER root
+
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
+ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["/bin/bash"]

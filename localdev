@@ -214,12 +214,11 @@ if [[ "$IS_REMOTE" != "true" ]]; then
   GROUP_ADD_FLAG=("--group-add" "keep-groups")
 fi
 
-# --userns=keep-id on Linux triggers slow ID-mapped layer copies when host UID != container UID.
-# Skip it on Linux when the host UID already matches the container developer UID (1000).
+# --userns=keep-id ensures the host user's UID is preserved inside the container so that
+# bind-mounted files have the correct ownership on both sides. The entrypoint remaps the
+# developer user to HOST_UID at runtime, so this works for any host UID.
 USERNS_FLAG=()
-if [[ "$(uname -s)" == "Linux" && "$(id -u)" == "1000" ]]; then
-  echo "Info: Skipping --userns=keep-id on Linux (host UID matches container UID 1000)" >&2
-else
+if [[ "$(uname -s)" == "Linux" ]]; then
   USERNS_FLAG=("--userns=keep-id")
 fi
 
@@ -260,6 +259,12 @@ podman run -it --rm \
   -e HOST_GID=$(id -g) \
   -w "/${DIR_NAME}" \
   localdev:latest \
-  bash -c 'if command -v tmux >/dev/null 2>&1; then tmux new-session -d -s dev && tmux split-window -t dev -v -p 20 && tmux select-pane -t dev:0.0 && tmux send-keys -t dev:0.0 claude Enter && exec tmux attach-session -t dev; else exec bash; fi'
+  bash -c 'if command -v tmux >/dev/null 2>&1 && tmux new-session -d -s dev 2>/dev/null; then
+    tmux split-window -t dev -v -p 20 2>/dev/null || true
+    tmux select-pane -t dev:0.0 2>/dev/null || true
+    tmux send-keys -t dev:0.0 claude Enter 2>/dev/null || true
+    exec tmux attach-session -t dev
+  fi
+  exec bash'
 
 rm -f "$MOUNTS_TMPFILE"
