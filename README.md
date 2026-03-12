@@ -181,33 +181,111 @@ After building locally, you can publish the containers to GitHub Container Regis
 
 ### Prerequisites for Publishing
 
-1. Authenticate with GitHub Container Registry:
+**Note:** These instructions are for project contributors who need to publish container images. If you're just using the containers, skip to [Pulling and Running on Another Host](#pulling-and-running-on-another-host).
+
+#### Authentication Requirements
+
+You need:
+1. Push permissions to the `gherlein/localdev` repository
+2. Authentication to GitHub Container Registry with package write permissions
+
+#### Authentication Method 1: Using GitHub CLI (Recommended)
+
+If you already use `gh` CLI, this is the easiest method:
+
 ```bash
-# Create a GitHub Personal Access Token with 'write:packages' permission
-# Then login:
-podman login ghcr.io -u YOUR_GITHUB_USERNAME
+# Check if you're already authenticated
+gh auth status
+
+# Add package scopes to your existing token
+gh auth refresh -s write:packages,read:packages
+
+# This will open a browser - follow the prompts to authorize the additional scopes
 ```
 
-2. Ensure you have push permissions to the `gherlein/localdev` repository.
+After authorizing, login to ghcr.io:
 
-### Publish Default Container
 ```bash
+# Login using your gh token
+gh auth token | podman login ghcr.io -u gherlein --password-stdin
+```
+
+Verify the login:
+
+```bash
+podman login ghcr.io
+# Should show: "Logged in to ghcr.io"
+```
+
+#### Authentication Method 2: Personal Access Token
+
+If you don't use `gh` CLI or prefer a separate token:
+
+1. Create a Personal Access Token (classic) at: https://github.com/settings/tokens/new
+2. Give it a descriptive name (e.g., "localdev container publishing")
+3. Select these scopes:
+   - ✅ `write:packages` - Upload packages to GitHub Package Registry
+   - ✅ `read:packages` - Download packages from GitHub Package Registry
+4. Click "Generate token" and copy it immediately
+
+Then login:
+
+```bash
+podman login ghcr.io -u gherlein
+# When prompted for password, paste your Personal Access Token
+```
+
+#### Verifying Authentication
+
+```bash
+# Check stored credentials
+cat ~/.config/containers/auth.json | grep ghcr.io
+
+# Or verify you can pull (public images work without auth, but this confirms the credentials are valid)
+podman pull ghcr.io/gherlein/localdev:latest
+```
+
+### Publishing Commands
+
+Once authenticated, you can publish containers:
+
+```bash
+# Publish default container
 make publish
-```
 
-This builds (if needed) and pushes `ghcr.io/gherlein/localdev:latest`.
-
-### Publish Full Container
-```bash
+# Publish full container
 make publish-full
-```
 
-This builds (if needed) and pushes `ghcr.io/gherlein/localfull:latest`.
-
-### Publish Both Containers
-```bash
+# Publish both containers
 make publish-all
 ```
+
+Each publish command:
+1. Builds the container if not already built (or if source changed)
+2. Pushes to `ghcr.io/gherlein/localdev:latest` or `ghcr.io/gherlein/localfull:latest`
+3. Makes the image available for others to pull
+
+**Note:** Authentication credentials persist in `~/.config/containers/auth.json`, so you only need to login once per machine.
+
+### Publishing Troubleshooting
+
+**403 Forbidden error:**
+```
+Error: trying to reuse blob sha256:... received unexpected HTTP status: 403 Forbidden
+```
+
+This means authentication failed. Solutions:
+- Check you're logged in: `podman login ghcr.io`
+- Verify your token has `write:packages` scope
+- Try logging out and back in: `podman logout ghcr.io && gh auth token | podman login ghcr.io -u gherlein --password-stdin`
+
+**401 Unauthorized error:**
+
+Your token may have expired. Re-run the authentication steps above.
+
+**Image already exists:**
+
+If you need to republish the same version, the push should still work (it will reuse existing layers). If you get conflicts, you may need to delete the package version from GitHub and republish.
 
 ## Pulling and Running on Another Host
 
