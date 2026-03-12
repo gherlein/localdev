@@ -305,8 +305,15 @@ RUN go install github.com/air-verse/air@latest && \
     go install golang.org/x/tools/cmd/stress@latest && \
     go clean -cache
 
+# Switch back to root so the entrypoint can remap UID/GID at runtime
+USER root
+
 # Copy launcher scripts into container for easy extraction
-COPY localdev localdevnet localfull /opt/localdev/bin/
+COPY localdev localdevnet localdevpull localfull /opt/localdev/bin/
 RUN chmod +x /opt/localdev/bin/*
 
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
+ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["/bin/bash"]
