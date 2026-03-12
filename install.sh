@@ -6,7 +6,7 @@ set -e
 
 REPO_URL="https://raw.githubusercontent.com/gherlein/localdev/main"
 INSTALL_DIR="${HOME}/bin"
-SCRIPTS=("localdev" "localdevnet" "localfull")
+SCRIPTS=("localdev" "localdevnet" "localfull" "localdevpull")
 
 echo "Installing localdev launcher scripts to ${INSTALL_DIR}..."
 
@@ -44,9 +44,11 @@ if [[ ":$PATH:" != *":${INSTALL_DIR}:"* ]]; then
 fi
 
 echo "Pull the container images:"
-echo "  podman pull ghcr.io/gherlein/localdev:latest"
-echo "  podman pull ghcr.io/gherlein/localfull:latest  # optional"
+echo "  localdevpull"
 echo ""
 echo "Then run:"
 echo "  localdev"
+echo ""
+echo "To update to the latest container images in the future, run:"
+echo "  localdevpull"
 echo ""
