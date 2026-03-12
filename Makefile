@@ -158,15 +158,42 @@ install:
 	else \
 		echo "Warning: $(IMAGE_FULL):latest image not found, skipping localfull install (run 'make build-full' or 'make pull-full' first)"; \
 	fi
+	@cp localdevpull ~/bin && chmod +x ~/bin/localdevpull && echo "Installed localdevpull to ~/bin"
+	@echo ""
+	@echo "To update to the latest container images, run: localdevpull"
 
 install-scripts:
 	@echo "Extracting launcher scripts from container..."
 	@mkdir -p ~/bin
 	@podman run --rm -v ~/bin:/output $(IMAGE_DEV):latest sh -c 'cp /opt/localdev/bin/* /output/ && chmod +x /output/*' 2>/dev/null || \
 		(echo "Error: Could not extract scripts. Pull the image first: make pull" && exit 1)
+	@echo 'Creating localdevpull script...'
+	@echo '#!/bin/bash' > ~/bin/localdevpull
+	@echo '# Pull the latest localdev container image' >> ~/bin/localdevpull
+	@echo '' >> ~/bin/localdevpull
+	@echo 'REGISTRY=ghcr.io' >> ~/bin/localdevpull
+	@echo 'REPO=gherlein' >> ~/bin/localdevpull
+	@echo 'IMAGE_DEV=$${REGISTRY}/$${REPO}/localdev' >> ~/bin/localdevpull
+	@echo 'TAG=latest' >> ~/bin/localdevpull
+	@echo '' >> ~/bin/localdevpull
+	@echo 'if command -v podman >/dev/null 2>&1; then' >> ~/bin/localdevpull
+	@echo '    RUNTIME=podman' >> ~/bin/localdevpull
+	@echo 'elif command -v docker >/dev/null 2>&1; then' >> ~/bin/localdevpull
+	@echo '    RUNTIME=docker' >> ~/bin/localdevpull
+	@echo 'else' >> ~/bin/localdevpull
+	@echo '    echo "Error: Neither podman nor docker found in PATH" >&2' >> ~/bin/localdevpull
+	@echo '    exit 1' >> ~/bin/localdevpull
+	@echo 'fi' >> ~/bin/localdevpull
+	@echo '' >> ~/bin/localdevpull
+	@echo 'echo "Pulling $${IMAGE_DEV}:$${TAG} using $${RUNTIME}..."' >> ~/bin/localdevpull
+	@echo '$${RUNTIME} pull $${IMAGE_DEV}:$${TAG}' >> ~/bin/localdevpull
+	@chmod +x ~/bin/localdevpull
 	@echo "Installed launcher scripts to ~/bin/"
 	@echo "  - localdev"
 	@echo "  - localdevnet"
 	@if podman image exists $(IMAGE_FULL):latest 2>/dev/null; then \
 		echo "  - localfull"; \
 	fi
+	@echo "  - localdevpull"
+	@echo ""
+	@echo "To update to the latest container images, run: localdevpull"
