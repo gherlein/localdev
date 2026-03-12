@@ -1,0 +1,56 @@
+name: Publish Container
+
+on:
+  workflow_dispatch:
+    inputs:
+      variant:
+        description: 'Which image to publish'
+        required: true
+        default: 'localdev'
+        type: choice
+        options:
+          - localdev
+          - localfull
+          - both
+      tag:
+        description: 'Image tag (e.g. latest, v1.0.0)'
+        required: true
+        default: 'latest'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Set arch
+        run: |
+          ARCH=$(uname -m)
+          if [ "$ARCH" = "x86_64" ]; then echo "TARGETARCH=amd64" >> $GITHUB_ENV
+          else echo "TARGETARCH=arm64" >> $GITHUB_ENV
+          fi
+
+      - name: Build and push localdev
+        if: ${{ inputs.variant == 'localdev' || inputs.variant == 'both' }}
+        run: |
+          docker build -t ghcr.io/${{ github.repository_owner }}/localdev:${{ inputs.tag }} \
+            --build-arg TARGETARCH=${{ env.TARGETARCH }} \
+            --pull -f Containerfile .
+          docker push ghcr.io/${{ github.repository_owner }}/localdev:${{ inputs.tag }}
+
+      - name: Build and push localfull
+        if: ${{ inputs.variant == 'localfull' || inputs.variant == 'both' }}
+        run: |
+          docker build -t ghcr.io/${{ github.repository_owner }}/localfull:${{ inputs.tag }} \
+            --build-arg TARGETARCH=${{ env.TARGETARCH }} \
+            --pull -f Containerfile.full .
+          docker push ghcr.io/${{ github.repository_owner }}/localfull:${{ inputs.tag }}
+          
