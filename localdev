@@ -258,7 +258,7 @@ podman run -it --rm \
   -e HOST_UID=$(id -u) \
   -e HOST_GID=$(id -g) \
   -w "/${DIR_NAME}" \
-  localdev:latest \
+  ghcr.io/gherlein/localdev:latest \
   bash -c 'if command -v tmux >/dev/null 2>&1 && tmux new-session -d -s dev 2>/dev/null; then
     tmux split-window -t dev -v -p 20 2>/dev/null || true
     tmux select-pane -t dev:0.0 2>/dev/null || true

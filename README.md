@@ -12,9 +12,9 @@ Two container variants are available:
 
 | Container | Script | Image | Description |
 |-----------|--------|-------|-------------|
-| **localdev** (default) | `localdev` | `localdev:latest` | Lightweight, fast-starting container with Node.js LTS, Go, and essential tools. Uses isolated container networking. |
-| **localdevnet** | `localdevnet` | `localdev:latest` | Same as `localdev` but runs with `--network host`, sharing the host's network stack directly. Use when the container needs to reach localhost services or LAN addresses. |
-| **localfull** | `localfull` | `localfull:latest` | Full-featured container with Java 17, Atlassian CLI, multiple Node.js versions. Uses isolated container networking. |
+| **localdev** (default) | `localdev` | `ghcr.io/gherlein/localdev:latest` | Lightweight, fast-starting container with Node.js LTS, Go, and essential tools. Uses isolated container networking. |
+| **localdevnet** | `localdevnet` | `ghcr.io/gherlein/localdev:latest` | Same as `localdev` but runs with `--network host`, sharing the host's network stack directly. Use when the container needs to reach localhost services or LAN addresses. |
+| **localfull** | `localfull` | `ghcr.io/gherlein/localfull:latest` | Full-featured container with Java 17, Atlassian CLI, multiple Node.js versions. Uses isolated container networking. |
 
 ### What's in localdev (default)
 - Debian Bookworm slim base (fast startup)
@@ -125,24 +125,24 @@ podman machine list
 
 If you encounter "signal: killed" errors during Go tool installations, your Podman machine memory is too low.
 
-## Building the Container
+## Building the Container Locally
 
 ### Quick Build (Default Container)
 ```bash
-make default
+make build
 ```
 
-This builds the lightweight `localdev:latest` container with:
+This builds the lightweight `ghcr.io/gherlein/localdev:latest` container with:
 - Memory limit: 16GB
 - Automatic architecture detection (amd64/arm64)
 - Pull latest base images
 
 ### Build Full Container
 ```bash
-make full
+make build-full
 ```
 
-This builds the `localfull:latest` container with Java, Atlassian CLI, and additional tools.
+This builds the `ghcr.io/gherlein/localfull:latest` container with Java, Atlassian CLI, and additional tools.
 
 ### Build Both Containers
 ```bash
@@ -156,6 +156,12 @@ make no-cache-default   # Default container only
 make no-cache-full      # Full container only
 ```
 
+### Backwards Compatibility Aliases
+```bash
+make default  # Same as 'make build'
+make full     # Same as 'make build-full'
+```
+
 ### Manual Build
 ```bash
 # Detect architecture
@@ -163,10 +169,109 @@ ARCH=$(uname -m)
 if [ "$ARCH" = "x86_64" ]; then TARGETARCH=amd64; else TARGETARCH=arm64; fi
 
 # Build default (lightweight) container
-podman build -t localdev:latest --memory=16g --build-arg TARGETARCH=$TARGETARCH --pull .
+podman build -t ghcr.io/gherlein/localdev:latest --memory=16g --build-arg TARGETARCH=$TARGETARCH --pull .
 
 # Build full container
-podman build -t localfull:latest --memory=16g --build-arg TARGETARCH=$TARGETARCH --pull -f Containerfile.full .
+podman build -t ghcr.io/gherlein/localfull:latest --memory=16g --build-arg TARGETARCH=$TARGETARCH --pull -f Containerfile.full .
+```
+
+## Publishing to Container Registry
+
+After building locally, you can publish the containers to GitHub Container Registry (ghcr.io).
+
+### Prerequisites for Publishing
+
+1. Authenticate with GitHub Container Registry:
+```bash
+# Create a GitHub Personal Access Token with 'write:packages' permission
+# Then login:
+podman login ghcr.io -u YOUR_GITHUB_USERNAME
+```
+
+2. Ensure you have push permissions to the `gherlein/localdev` repository.
+
+### Publish Default Container
+```bash
+make publish
+```
+
+This builds (if needed) and pushes `ghcr.io/gherlein/localdev:latest`.
+
+### Publish Full Container
+```bash
+make publish-full
+```
+
+This builds (if needed) and pushes `ghcr.io/gherlein/localfull:latest`.
+
+### Publish Both Containers
+```bash
+make publish-all
+```
+
+## Pulling and Running on Another Host
+
+You can pull and use the pre-built containers on any host without building locally.
+
+### Pull the Containers
+
+```bash
+# Pull default container
+make pull
+
+# Pull full container
+make pull-full
+
+# Or manually with podman
+podman pull ghcr.io/gherlein/localdev:latest
+podman pull ghcr.io/gherlein/localfull:latest
+```
+
+### Install Launcher Scripts on New Host
+
+1. Clone this repository:
+```bash
+git clone https://github.com/gherlein/localdev.git
+cd localdev
+```
+
+2. Pull the pre-built images:
+```bash
+make pull          # For localdev
+make pull-full     # For localfull (optional)
+```
+
+3. Install the launcher scripts:
+```bash
+make install
+```
+
+This copies the launcher scripts (`localdev`, `localdevnet`, `localfull`) to `~/bin/`.
+
+4. Run the container:
+```bash
+localdev
+# or
+localdevnet
+# or
+localfull
+```
+
+### Quick Start on New Host (No Clone)
+
+If you just want to run the container without the launcher scripts:
+
+```bash
+# Pull the image
+podman pull ghcr.io/gherlein/localdev:latest
+
+# Run directly
+podman run --rm -it \
+  --userns=keep-id \
+  -v "$(pwd):/workspace" \
+  -w /workspace \
+  ghcr.io/gherlein/localdev:latest \
+  bash
 ```
 
 ## Using the Container
@@ -175,9 +280,9 @@ podman build -t localfull:latest --memory=16g --build-arg TARGETARCH=$TARGETARCH
 
 Three scripts provide convenient access to the containers with automatic directory mounting and support for read-only external directories.
 
-- **`localdev`** - launches the lightweight `localdev:latest` container with isolated networking (default)
-- **`localdevnet`** - launches the same `localdev:latest` container with `--network host`, sharing the host's network stack; use this when the container needs to connect to services running on localhost or your LAN
-- **`localfull`** - launches the full-featured `localfull:latest` container (Java, Atlassian CLI, multiple Node versions) with isolated networking
+- **`localdev`** - launches the lightweight container with isolated networking (default)
+- **`localdevnet`** - launches the same lightweight container with `--network host`, sharing the host's network stack; use this when the container needs to connect to services running on localhost or your LAN
+- **`localfull`** - launches the full-featured container (Java, Atlassian CLI, multiple Node versions) with isolated networking
 
 #### Installation
 ```bash
@@ -344,21 +449,21 @@ make run
 make run-full
 
 # Or manually
-podman run --rm -it -v "$(pwd):/workspace" localdev:latest bash      # default
-podman run --rm -it -v "$(pwd):/workspace" localfull:latest bash     # full
+podman run --rm -it -v "$(pwd):/workspace" ghcr.io/gherlein/localdev:latest bash      # default
+podman run --rm -it -v "$(pwd):/workspace" ghcr.io/gherlein/localfull:latest bash     # full
 ```
 
 #### Custom Mount Points
 ```bash
 # Mount specific project directory
-podman run --rm -it -v "/path/to/project:/workspace" localdev:latest bash
+podman run --rm -it -v "/path/to/project:/workspace" ghcr.io/gherlein/localdev:latest bash
 
 # Multiple mounts
 podman run --rm -it \
   -v "$(pwd):/workspace" \
   -v "/path/to/libs:/libs:ro" \
   -v "$HOME/.claude:/home/developer/.claude:rw" \
-  localdev:latest bash
+  ghcr.io/gherlein/localdev:latest bash
 ```
 
 ## Inside the Container

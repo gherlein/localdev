@@ -250,7 +250,7 @@ podman run -it --rm \
   -e HOST_UID=$(id -u) \
   -e HOST_GID=$(id -g) \
   -w "/${DIR_NAME}" \
-  localfull:latest \
+  ghcr.io/gherlein/localfull:latest \
   bash -c 'if command -v tmux >/dev/null 2>&1; then tmux new-session -d -s dev && tmux split-window -t dev -v -p 20 && tmux select-pane -t dev:0.0 && tmux send-keys -t dev:0.0 claude Enter && exec tmux attach-session -t dev; else exec bash; fi'
 
 rm -f "$MOUNTS_TMPFILE"

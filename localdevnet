@@ -237,7 +237,7 @@ podman run -it --rm \
   -e HOST_GID=$(id -g) \
   -w "/${DIR_NAME}" \
   --network host \
-  localdev:latest \
+  ghcr.io/gherlein/localdev:latest \
   bash
 
 rm -f "$MOUNTS_TMPFILE"

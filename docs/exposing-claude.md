@@ -157,7 +157,7 @@ podman run -it --rm \
   -e HOST_UID=$(id -u) \
   -e HOST_GID=$(id -g) \
   -w "/${DIR_NAME}" \
-  localdev:latest \
+  ghcr.io/gherlein/localdev:latest \
   bash
 ```
 
