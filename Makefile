@@ -4,7 +4,8 @@ REPO := gherlein
 IMAGE_DEV := $(REGISTRY)/$(REPO)/localdev
 IMAGE_FULL := $(REGISTRY)/$(REPO)/localfull
 TAG := latest
-VERSION ?= $(TAG)  # Override with VERSION=v1.2.3 for semantic versioning
+# Override with VERSION=v1.2.3 for semantic versioning
+VERSION ?= $(TAG)
 
 # x86
 ifeq ($(ARCH),x86_64)
@@ -22,7 +23,7 @@ ifeq ($(ARCH),arm64)
 endif
 
 .PHONY: help all default full build build-full no-cache no-cache-default no-cache-full
-.PHONY: publish publish-full publish-all pull pull-full run run-full install install-scripts pre
+.PHONY: publish publish-local publish-full publish-full-local publish-all pull pull-full run run-full install install-scripts pre
 
 help:
 	@echo "Available targets:"
@@ -38,9 +39,13 @@ help:
 	@echo "  no-cache-full  - Rebuild full container without cache"
 	@echo ""
 	@echo "Publish targets:"
-	@echo "  publish        - Tag and push localdev to $(IMAGE_DEV):$(VERSION)"
-	@echo "  publish-full   - Tag and push localfull to $(IMAGE_FULL):$(VERSION)"
-	@echo "  publish-all    - Publish both containers"
+	@echo "  publish        - Build and push multi-arch localdev (requires GitHub Actions)"
+	@echo "  publish-local  - Push current platform localdev build to $(IMAGE_DEV):$(VERSION)"
+	@echo "  publish-full   - Build and push multi-arch localfull (requires GitHub Actions)"
+	@echo "  publish-full-local - Push current platform localfull build"
+	@echo "  publish-all    - Publish both containers (multi-arch, requires GitHub Actions)"
+	@echo ""
+	@echo "Note: Multi-arch builds use GitHub Actions. For local testing, use publish-local."
 	@echo ""
 	@echo "Pull targets:"
 	@echo "  pull           - Pull localdev from $(IMAGE_DEV):$(VERSION)"
@@ -103,26 +108,96 @@ no-cache-full:
 		echo "Built $(IMAGE_FULL):$(VERSION)"; \
 	fi
 
-publish: build
-	@echo "Publishing $(IMAGE_DEV):$(VERSION)..."
-	podman push $(IMAGE_DEV):$(VERSION)
+publish-local: build
+	@echo "Publishing current platform $(IMAGE_DEV):$(VERSION)..."
+	podman push "$(IMAGE_DEV):$(VERSION)"
 	@if [ "$(VERSION)" != "latest" ]; then \
-		echo "Publishing $(IMAGE_DEV):latest..."; \
-		podman push $(IMAGE_DEV):latest; \
+		podman tag "$(IMAGE_DEV):$(VERSION)" "$(IMAGE_DEV):latest"; \
+		podman push "$(IMAGE_DEV):latest"; \
 		echo "Published $(IMAGE_DEV):$(VERSION) and $(IMAGE_DEV):latest"; \
 	else \
 		echo "Published $(IMAGE_DEV):$(VERSION)"; \
 	fi
 
-publish-full: build-full
-	@echo "Publishing $(IMAGE_FULL):$(VERSION)..."
-	podman push $(IMAGE_FULL):$(VERSION)
+publish: build
+	@echo "ERROR: Multi-arch builds should use GitHub Actions"
+	@echo "See: .github/workflows/publish-multiarch.yml"
+	@echo ""
+	@echo "To publish just your current platform, use: make publish-local"
+	@echo "To trigger GitHub Actions build: git push origin main"
+	@exit 1
+
+publish-multiarch-manual: build
+	@echo "Building multi-arch manifest for $(IMAGE_DEV):$(VERSION)..."
+	@echo "Building amd64 image..."
+	podman build --platform=linux/amd64 -t "$(IMAGE_DEV):$(VERSION)-amd64" --format docker --memory=16g --build-arg TARGETARCH=amd64 --pull .
+	@echo "Building arm64 image..."
+	podman build --platform=linux/arm64 -t "$(IMAGE_DEV):$(VERSION)-arm64" --format docker --memory=16g --build-arg TARGETARCH=arm64 --pull .
+	@echo "Pushing architecture-specific images..."
+	podman push "$(IMAGE_DEV):$(VERSION)-amd64"
+	podman push "$(IMAGE_DEV):$(VERSION)-arm64"
+	@echo "Creating multi-arch manifest..."
+	podman manifest rm "$(IMAGE_DEV):$(VERSION)" 2>/dev/null || true
+	podman manifest create "$(IMAGE_DEV):$(VERSION)"
+	podman manifest add "$(IMAGE_DEV):$(VERSION)" "$(IMAGE_DEV):$(VERSION)-amd64"
+	podman manifest add "$(IMAGE_DEV):$(VERSION)" "$(IMAGE_DEV):$(VERSION)-arm64"
+	podman manifest push "$(IMAGE_DEV):$(VERSION)"
 	@if [ "$(VERSION)" != "latest" ]; then \
-		echo "Publishing $(IMAGE_FULL):latest..."; \
-		podman push $(IMAGE_FULL):latest; \
+		echo "Creating multi-arch manifest for latest..."; \
+		podman manifest rm "$(IMAGE_DEV):latest" 2>/dev/null || true; \
+		podman manifest create "$(IMAGE_DEV):latest"; \
+		podman manifest add "$(IMAGE_DEV):latest" "$(IMAGE_DEV):$(VERSION)-amd64"; \
+		podman manifest add "$(IMAGE_DEV):latest" "$(IMAGE_DEV):$(VERSION)-arm64"; \
+		podman manifest push "$(IMAGE_DEV):latest"; \
+		echo "Published $(IMAGE_DEV):$(VERSION) and $(IMAGE_DEV):latest (multi-arch)"; \
+	else \
+		echo "Published $(IMAGE_DEV):$(VERSION) (multi-arch)"; \
+	fi
+
+publish-full-local: build-full
+	@echo "Publishing current platform $(IMAGE_FULL):$(VERSION)..."
+	podman push "$(IMAGE_FULL):$(VERSION)"
+	@if [ "$(VERSION)" != "latest" ]; then \
+		podman tag "$(IMAGE_FULL):$(VERSION)" "$(IMAGE_FULL):latest"; \
+		podman push "$(IMAGE_FULL):latest"; \
 		echo "Published $(IMAGE_FULL):$(VERSION) and $(IMAGE_FULL):latest"; \
 	else \
 		echo "Published $(IMAGE_FULL):$(VERSION)"; \
+	fi
+
+publish-full: build-full
+	@echo "ERROR: Multi-arch builds should use GitHub Actions"
+	@echo "See: .github/workflows/publish-multiarch.yml"
+	@echo ""
+	@echo "To publish just your current platform, use: make publish-full-local"
+	@echo "To trigger GitHub Actions build: git push origin main"
+	@exit 1
+
+publish-full-multiarch-manual: build-full
+	@echo "Building multi-arch manifest for $(IMAGE_FULL):$(VERSION)..."
+	@echo "Building amd64 image..."
+	podman build --platform=linux/amd64 -t "$(IMAGE_FULL):$(VERSION)-amd64" --format docker --memory=16g --build-arg TARGETARCH=amd64 --pull -f Containerfile.full .
+	@echo "Building arm64 image..."
+	podman build --platform=linux/arm64 -t "$(IMAGE_FULL):$(VERSION)-arm64" --format docker --memory=16g --build-arg TARGETARCH=arm64 --pull -f Containerfile.full .
+	@echo "Pushing architecture-specific images..."
+	podman push "$(IMAGE_FULL):$(VERSION)-amd64"
+	podman push "$(IMAGE_FULL):$(VERSION)-arm64"
+	@echo "Creating multi-arch manifest..."
+	podman manifest rm "$(IMAGE_FULL):$(VERSION)" 2>/dev/null || true
+	podman manifest create "$(IMAGE_FULL):$(VERSION)"
+	podman manifest add "$(IMAGE_FULL):$(VERSION)" "$(IMAGE_FULL):$(VERSION)-amd64"
+	podman manifest add "$(IMAGE_FULL):$(VERSION)" "$(IMAGE_FULL):$(VERSION)-arm64"
+	podman manifest push "$(IMAGE_FULL):$(VERSION)"
+	@if [ "$(VERSION)" != "latest" ]; then \
+		echo "Creating multi-arch manifest for latest..."; \
+		podman manifest rm "$(IMAGE_FULL):latest" 2>/dev/null || true; \
+		podman manifest create "$(IMAGE_FULL):latest"; \
+		podman manifest add "$(IMAGE_FULL):latest" "$(IMAGE_FULL):$(VERSION)-amd64"; \
+		podman manifest add "$(IMAGE_FULL):latest" "$(IMAGE_FULL):$(VERSION)-arm64"; \
+		podman manifest push "$(IMAGE_FULL):latest"; \
+		echo "Published $(IMAGE_FULL):$(VERSION) and $(IMAGE_FULL):latest (multi-arch)"; \
+	else \
+		echo "Published $(IMAGE_FULL):$(VERSION) (multi-arch)"; \
 	fi
 
 publish-all: publish publish-full
