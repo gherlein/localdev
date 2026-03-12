@@ -262,7 +262,6 @@ podman run -it --rm \
   bash -c 'if command -v tmux >/dev/null 2>&1 && tmux new-session -d -s dev 2>/dev/null; then
     tmux split-window -t dev -v -p 20 2>/dev/null || true
     tmux select-pane -t dev:0.0 2>/dev/null || true
-    tmux send-keys -t dev:0.0 claude Enter 2>/dev/null || true
     tmux display-message -t dev "Tip: Switch panes with Ctrl+b then o (or arrow keys)" 2>/dev/null || true
     exec tmux attach-session -t dev
   else

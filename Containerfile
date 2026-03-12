@@ -155,7 +155,9 @@ RUN echo 'export NVM_DIR=/usr/local/nvm' >> /etc/bash.bashrc && \
     echo '# Add user npm global binaries to PATH' >> /etc/bash.bashrc && \
     echo 'export PATH="$HOME/.npm-global/bin:$PATH"' >> /etc/bash.bashrc && \
     echo '# Alias emacs to mg' >> /etc/bash.bashrc && \
-    echo 'alias emacs=mg' >> /etc/bash.bashrc
+    echo 'alias emacs=mg' >> /etc/bash.bashrc && \
+    echo '# Claude dangerous mode alias (backup - also in dotfiles)' >> /etc/bash.bashrc && \
+    echo 'alias clauded="claude --dangerously-skip-permissions"' >> /etc/bash.bashrc
 
 # Install stow for dotfiles management
 RUN apt-get update && apt-get install -y stow && rm -rf /var/lib/apt/lists/*
@@ -214,7 +216,7 @@ RUN go install golang.org/x/tools/cmd/goimports@latest && \
 USER root
 
 # Copy launcher scripts into container for easy extraction
-COPY localdev localdevnet /opt/localdev/bin/
+COPY localdev localdevnet localdevpull /opt/localdev/bin/
 RUN chmod +x /opt/localdev/bin/*
 
 COPY docker-entrypoint.sh /docker-entrypoint.sh
