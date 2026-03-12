@@ -2,6 +2,62 @@
 
 A feature-rich containerized development environment for safely using Claude Code CLI and other AI assistants in "dangerous mode" for multi-language development.
 
+## Quick Start
+
+**Container Images:**
+- `ghcr.io/gherlein/localdev:latest` - Lightweight (Node.js LTS, Go, essential tools)
+- `ghcr.io/gherlein/localfull:latest` - Full-featured (Java 17, Atlassian CLI, multiple Node versions)
+
+### Installation Methods
+
+Choose one of these methods to get started:
+
+#### Option 1: One-Liner Install (Easiest)
+
+```bash
+# Install launcher scripts
+curl -fsSL https://raw.githubusercontent.com/gherlein/localdev/main/install.sh | bash
+
+# Pull container image
+podman pull ghcr.io/gherlein/localdev:latest
+
+# Run
+localdev
+```
+
+#### Option 2: Extract Scripts from Container
+
+```bash
+# Pull container image
+podman pull ghcr.io/gherlein/localdev:latest
+
+# Extract launcher scripts from the image
+podman run --rm -v ~/bin:/output ghcr.io/gherlein/localdev:latest \
+  sh -c 'cp /opt/localdev/bin/* /output/ && chmod +x /output/*'
+
+# Run
+localdev
+```
+
+#### Option 3: Clone Repository (For Contributors)
+
+```bash
+# Clone the repo
+git clone https://github.com/gherlein/localdev.git
+cd localdev
+
+# Pull or build
+make pull          # Pull pre-built image
+# OR
+make build         # Build locally
+
+# Install scripts
+make install
+
+# Run
+localdev
+```
+
 ## Purpose
 
 This Podman/Docker container provides an isolated environment where Claude Code and other AI assistants can operate with elevated permissions (`--dangerously-skip-permissions`) without compromising your host system. The container includes a comprehensive development toolchain for modern software development.
@@ -250,20 +306,28 @@ podman pull ghcr.io/gherlein/localdev:latest
 Once authenticated, you can publish containers:
 
 ```bash
-# Publish default container
-make publish
+# Publish latest (default)
+make publish          # Publishes ghcr.io/gherlein/localdev:latest
+make publish-full     # Publishes ghcr.io/gherlein/localfull:latest
+make publish-all      # Publish both containers
 
-# Publish full container
-make publish-full
-
-# Publish both containers
-make publish-all
+# Publish with semantic version (recommended for releases)
+make publish VERSION=v1.0.0          # Publishes both v1.0.0 and latest
+make publish-full VERSION=v1.2.0     # Publishes both v1.2.0 and latest
 ```
+
+**Semantic Versioning:**
+- When `VERSION` is specified (e.g., `v1.0.0`), the Makefile creates **two tags**: the version tag and `latest`
+- Both tags are pushed to the registry
+- Users can pin to specific versions (`ghcr.io/gherlein/localdev:v1.0.0`) or use latest
+- Follow [semantic versioning](https://semver.org/): `vMAJOR.MINOR.PATCH`
 
 Each publish command:
 1. Builds the container if not already built (or if source changed)
-2. Pushes to `ghcr.io/gherlein/localdev:latest` or `ghcr.io/gherlein/localfull:latest`
-3. Makes the image available for others to pull
+2. Tags with specified VERSION (or `latest` if not specified)
+3. If VERSION is not `latest`, also tags and pushes as `latest`
+4. Pushes all tags to `ghcr.io/gherlein/localdev` or `ghcr.io/gherlein/localfull`
+5. Makes the image available for others to pull
 
 **Note:** Authentication credentials persist in `~/.config/containers/auth.json`, so you only need to login once per machine.
 
@@ -287,6 +351,62 @@ Your token may have expired. Re-run the authentication steps above.
 
 If you need to republish the same version, the push should still work (it will reuse existing layers). If you get conflicts, you may need to delete the package version from GitHub and republish.
 
+### Release Workflow for Contributors
+
+When creating a new release:
+
+1. **Update version-specific documentation** (if any)
+2. **Build and test locally:**
+   ```bash
+   make build VERSION=v1.0.0
+   make run VERSION=v1.0.0
+   # Test the container thoroughly
+   ```
+
+3. **Publish to registry:**
+   ```bash
+   make publish VERSION=v1.0.0
+   ```
+
+4. **Create GitHub Release:**
+   - Go to https://github.com/gherlein/localdev/releases/new
+   - Tag: `v1.0.0`
+   - Title: `Release v1.0.0`
+   - Description should include:
+     ```markdown
+     ## Container Images
+
+     ```bash
+     # Pull specific version
+     podman pull ghcr.io/gherlein/localdev:v1.0.0
+     podman pull ghcr.io/gherlein/localfull:v1.0.0
+
+     # Or pull latest
+     podman pull ghcr.io/gherlein/localdev:latest
+     podman pull ghcr.io/gherlein/localfull:latest
+     ```
+
+     ## Changes
+     - List of changes...
+     ```
+
+5. **Verify on registry:**
+   - Check https://github.com/gherlein/localdev/pkgs/container/localdev
+   - Verify both `v1.0.0` and `latest` tags are visible
+
+### Inspecting Image Metadata
+
+The containers include OCI annotations with standard metadata:
+
+```bash
+# View all labels/annotations
+podman inspect ghcr.io/gherlein/localdev:latest | jq '.[0].Labels'
+
+# View specific annotations
+podman inspect ghcr.io/gherlein/localdev:latest | jq '.[0].Labels."org.opencontainers.image.source"'
+podman inspect ghcr.io/gherlein/localdev:latest | jq '.[0].Labels."org.opencontainers.image.description"'
+```
+
 ## Pulling and Running on Another Host
 
 You can pull and use the pre-built containers on any host without building locally.
@@ -294,45 +414,72 @@ You can pull and use the pre-built containers on any host without building local
 ### Pull the Containers
 
 ```bash
-# Pull default container
+# Pull latest version (default)
 make pull
-
-# Pull full container
 make pull-full
+
+# Pull specific version
+make pull VERSION=v1.0.0
+make pull-full VERSION=v1.0.0
 
 # Or manually with podman
 podman pull ghcr.io/gherlein/localdev:latest
 podman pull ghcr.io/gherlein/localfull:latest
+
+# Pull specific version manually
+podman pull ghcr.io/gherlein/localdev:v1.0.0
+podman pull ghcr.io/gherlein/localfull:v1.0.0
 ```
 
 ### Install Launcher Scripts on New Host
 
-1. Clone this repository:
+**Method 1: One-Liner (Recommended)**
+
+```bash
+# Download and install launcher scripts
+curl -fsSL https://raw.githubusercontent.com/gherlein/localdev/main/install.sh | bash
+
+# Pull container images
+podman pull ghcr.io/gherlein/localdev:latest
+podman pull ghcr.io/gherlein/localfull:latest  # optional
+```
+
+**Method 2: Extract from Container**
+
+```bash
+# Pull the image first
+podman pull ghcr.io/gherlein/localdev:latest
+
+# Extract scripts from container
+podman run --rm -v ~/bin:/output ghcr.io/gherlein/localdev:latest \
+  sh -c 'cp /opt/localdev/bin/* /output/ && chmod +x /output/*'
+
+# Or use the Makefile (requires cloning repo)
+git clone https://github.com/gherlein/localdev.git
+cd localdev
+make pull
+make install-scripts
+```
+
+**Method 3: Clone Repository**
+
 ```bash
 git clone https://github.com/gherlein/localdev.git
 cd localdev
-```
-
-2. Pull the pre-built images:
-```bash
-make pull          # For localdev
-make pull-full     # For localfull (optional)
-```
-
-3. Install the launcher scripts:
-```bash
+make pull          # Or: make build to build locally
 make install
 ```
 
-This copies the launcher scripts (`localdev`, `localdevnet`, `localfull`) to `~/bin/`.
+All methods install the launcher scripts (`localdev`, `localdevnet`, `localfull`) to `~/bin/`.
 
-4. Run the container:
+**Verify Installation:**
+
 ```bash
+# Check scripts are installed
+which localdev
+
+# Run
 localdev
-# or
-localdevnet
-# or
-localfull
 ```
 
 ### Quick Start on New Host (No Clone)

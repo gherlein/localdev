@@ -4,6 +4,7 @@ REPO := gherlein
 IMAGE_DEV := $(REGISTRY)/$(REPO)/localdev
 IMAGE_FULL := $(REGISTRY)/$(REPO)/localfull
 TAG := latest
+VERSION ?= $(TAG)  # Override with VERSION=v1.2.3 for semantic versioning
 
 # x86
 ifeq ($(ARCH),x86_64)
@@ -21,10 +22,11 @@ ifeq ($(ARCH),arm64)
 endif
 
 .PHONY: help all default full build build-full no-cache no-cache-default no-cache-full
-.PHONY: publish publish-full publish-all pull pull-full run run-full install pre
+.PHONY: publish publish-full publish-all pull pull-full run run-full install install-scripts pre
 
 help:
 	@echo "Available targets:"
+	@echo ""
 	@echo "Build targets:"
 	@echo "  build          - Build localdev container (lightweight, no Java)"
 	@echo "  build-full     - Build localfull container (Java, all Node versions, Atlassian CLI)"
@@ -36,29 +38,46 @@ help:
 	@echo "  no-cache-full  - Rebuild full container without cache"
 	@echo ""
 	@echo "Publish targets:"
-	@echo "  publish        - Tag and push localdev to $(IMAGE_DEV):$(TAG)"
-	@echo "  publish-full   - Tag and push localfull to $(IMAGE_FULL):$(TAG)"
+	@echo "  publish        - Tag and push localdev to $(IMAGE_DEV):$(VERSION)"
+	@echo "  publish-full   - Tag and push localfull to $(IMAGE_FULL):$(VERSION)"
 	@echo "  publish-all    - Publish both containers"
 	@echo ""
 	@echo "Pull targets:"
-	@echo "  pull           - Pull localdev from $(IMAGE_DEV):$(TAG)"
-	@echo "  pull-full      - Pull localfull from $(IMAGE_FULL):$(TAG)"
+	@echo "  pull           - Pull localdev from $(IMAGE_DEV):$(VERSION)"
+	@echo "  pull-full      - Pull localfull from $(IMAGE_FULL):$(VERSION)"
 	@echo ""
 	@echo "Run targets:"
 	@echo "  run            - Run default container (localdev)"
 	@echo "  run-full       - Run full container (localfull)"
-	@echo "  install        - Install all launchers to ~/bin"
+	@echo ""
+	@echo "Install targets:"
+	@echo "  install        - Install launchers from local files (requires repo clone)"
+	@echo "  install-scripts - Extract launchers from container image (no clone needed)"
 	@echo "  pre            - Install podman (apt)"
+	@echo ""
+	@echo "Variables:"
+	@echo "  VERSION        - Image tag (default: latest). Example: make build VERSION=v1.0.0"
+	@echo "                   When VERSION is not 'latest', both VERSION and latest tags are created/pushed"
 
 all: build build-full
 
 build:
-	podman build -t $(IMAGE_DEV):$(TAG) --format docker --memory=16g --build-arg TARGETARCH=${TARGETARCH} --pull .
-	@echo "Built $(IMAGE_DEV):$(TAG)"
+	podman build -t $(IMAGE_DEV):$(VERSION) --format docker --memory=16g --build-arg TARGETARCH=${TARGETARCH} --pull .
+	@if [ "$(VERSION)" != "latest" ]; then \
+		podman tag $(IMAGE_DEV):$(VERSION) $(IMAGE_DEV):latest; \
+		echo "Built $(IMAGE_DEV):$(VERSION) and tagged as latest"; \
+	else \
+		echo "Built $(IMAGE_DEV):$(VERSION)"; \
+	fi
 
 build-full:
-	podman build -t $(IMAGE_FULL):$(TAG) --format docker --memory=16g --build-arg TARGETARCH=${TARGETARCH} --pull -f Containerfile.full .
-	@echo "Built $(IMAGE_FULL):$(TAG)"
+	podman build -t $(IMAGE_FULL):$(VERSION) --format docker --memory=16g --build-arg TARGETARCH=${TARGETARCH} --pull -f Containerfile.full .
+	@if [ "$(VERSION)" != "latest" ]; then \
+		podman tag $(IMAGE_FULL):$(VERSION) $(IMAGE_FULL):latest; \
+		echo "Built $(IMAGE_FULL):$(VERSION) and tagged as latest"; \
+	else \
+		echo "Built $(IMAGE_FULL):$(VERSION)"; \
+	fi
 
 default: build
 
@@ -67,53 +86,87 @@ full: build-full
 no-cache: no-cache-default no-cache-full
 
 no-cache-default:
-	podman build -t $(IMAGE_DEV):$(TAG) --format docker --no-cache --memory=16g --build-arg TARGETARCH=${TARGETARCH} --pull .
-	@echo "Built $(IMAGE_DEV):$(TAG)"
+	podman build -t $(IMAGE_DEV):$(VERSION) --format docker --no-cache --memory=16g --build-arg TARGETARCH=${TARGETARCH} --pull .
+	@if [ "$(VERSION)" != "latest" ]; then \
+		podman tag $(IMAGE_DEV):$(VERSION) $(IMAGE_DEV):latest; \
+		echo "Built $(IMAGE_DEV):$(VERSION) and tagged as latest"; \
+	else \
+		echo "Built $(IMAGE_DEV):$(VERSION)"; \
+	fi
 
 no-cache-full:
-	podman build -t $(IMAGE_FULL):$(TAG) --format docker --no-cache --memory=16g --build-arg TARGETARCH=${TARGETARCH} --pull -f Containerfile.full .
-	@echo "Built $(IMAGE_FULL):$(TAG)"
+	podman build -t $(IMAGE_FULL):$(VERSION) --format docker --no-cache --memory=16g --build-arg TARGETARCH=${TARGETARCH} --pull -f Containerfile.full .
+	@if [ "$(VERSION)" != "latest" ]; then \
+		podman tag $(IMAGE_FULL):$(VERSION) $(IMAGE_FULL):latest; \
+		echo "Built $(IMAGE_FULL):$(VERSION) and tagged as latest"; \
+	else \
+		echo "Built $(IMAGE_FULL):$(VERSION)"; \
+	fi
 
 publish: build
-	@echo "Publishing $(IMAGE_DEV):$(TAG)..."
-	podman push $(IMAGE_DEV):$(TAG)
-	@echo "Published $(IMAGE_DEV):$(TAG)"
+	@echo "Publishing $(IMAGE_DEV):$(VERSION)..."
+	podman push $(IMAGE_DEV):$(VERSION)
+	@if [ "$(VERSION)" != "latest" ]; then \
+		echo "Publishing $(IMAGE_DEV):latest..."; \
+		podman push $(IMAGE_DEV):latest; \
+		echo "Published $(IMAGE_DEV):$(VERSION) and $(IMAGE_DEV):latest"; \
+	else \
+		echo "Published $(IMAGE_DEV):$(VERSION)"; \
+	fi
 
 publish-full: build-full
-	@echo "Publishing $(IMAGE_FULL):$(TAG)..."
-	podman push $(IMAGE_FULL):$(TAG)
-	@echo "Published $(IMAGE_FULL):$(TAG)"
+	@echo "Publishing $(IMAGE_FULL):$(VERSION)..."
+	podman push $(IMAGE_FULL):$(VERSION)
+	@if [ "$(VERSION)" != "latest" ]; then \
+		echo "Publishing $(IMAGE_FULL):latest..."; \
+		podman push $(IMAGE_FULL):latest; \
+		echo "Published $(IMAGE_FULL):$(VERSION) and $(IMAGE_FULL):latest"; \
+	else \
+		echo "Published $(IMAGE_FULL):$(VERSION)"; \
+	fi
 
 publish-all: publish publish-full
 
 pull:
-	@echo "Pulling $(IMAGE_DEV):$(TAG)..."
-	podman pull $(IMAGE_DEV):$(TAG)
-	@echo "Pulled $(IMAGE_DEV):$(TAG)"
+	@echo "Pulling $(IMAGE_DEV):$(VERSION)..."
+	podman pull $(IMAGE_DEV):$(VERSION)
+	@echo "Pulled $(IMAGE_DEV):$(VERSION)"
 
 pull-full:
-	@echo "Pulling $(IMAGE_FULL):$(TAG)..."
-	podman pull $(IMAGE_FULL):$(TAG)
-	@echo "Pulled $(IMAGE_FULL):$(TAG)"
+	@echo "Pulling $(IMAGE_FULL):$(VERSION)..."
+	podman pull $(IMAGE_FULL):$(VERSION)
+	@echo "Pulled $(IMAGE_FULL):$(VERSION)"
 
 run:
-	podman run --rm -it -v "$(shell pwd):/workspace" $(IMAGE_DEV):$(TAG) bash
+	podman run --rm -it -v "$(shell pwd):/workspace" $(IMAGE_DEV):$(VERSION) bash
 
 run-full:
-	podman run --rm -it -v "$(shell pwd):/workspace" $(IMAGE_FULL):$(TAG) bash
+	podman run --rm -it -v "$(shell pwd):/workspace" $(IMAGE_FULL):$(VERSION) bash
 
 pre:
 	sudo apt-get -y install podman
 
 install:
-	@if podman image exists $(IMAGE_DEV):$(TAG) 2>/dev/null; then \
+	@if podman image exists $(IMAGE_DEV):latest 2>/dev/null; then \
 		cp localdev ~/bin && chmod +x ~/bin/localdev && echo "Installed localdev to ~/bin"; \
 		cp localdevnet ~/bin && chmod +x ~/bin/localdevnet && echo "Installed localdevnet to ~/bin"; \
 	else \
-		echo "Warning: $(IMAGE_DEV):$(TAG) image not found, skipping localdev/localdevnet install (run 'make build' or 'make pull' first)"; \
+		echo "Warning: $(IMAGE_DEV):latest image not found, skipping localdev/localdevnet install (run 'make build' or 'make pull' first)"; \
 	fi
-	@if podman image exists $(IMAGE_FULL):$(TAG) 2>/dev/null; then \
+	@if podman image exists $(IMAGE_FULL):latest 2>/dev/null; then \
 		cp localfull ~/bin && chmod +x ~/bin/localfull && echo "Installed localfull to ~/bin"; \
 	else \
-		echo "Warning: $(IMAGE_FULL):$(TAG) image not found, skipping localfull install (run 'make build-full' or 'make pull-full' first)"; \
+		echo "Warning: $(IMAGE_FULL):latest image not found, skipping localfull install (run 'make build-full' or 'make pull-full' first)"; \
+	fi
+
+install-scripts:
+	@echo "Extracting launcher scripts from container..."
+	@mkdir -p ~/bin
+	@podman run --rm -v ~/bin:/output $(IMAGE_DEV):latest sh -c 'cp /opt/localdev/bin/* /output/ && chmod +x /output/*' 2>/dev/null || \
+		(echo "Error: Could not extract scripts. Pull the image first: make pull" && exit 1)
+	@echo "Installed launcher scripts to ~/bin/"
+	@echo "  - localdev"
+	@echo "  - localdevnet"
+	@if podman image exists $(IMAGE_FULL):latest 2>/dev/null; then \
+		echo "  - localfull"; \
 	fi

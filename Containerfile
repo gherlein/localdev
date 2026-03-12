@@ -3,6 +3,16 @@
 # For full container with Java and Atlassian CLI, see Dockerfile.full
 FROM debian:bookworm-slim
 
+# OCI annotations for image metadata
+LABEL org.opencontainers.image.title="localdev" \
+      org.opencontainers.image.description="Lightweight isolated development container for Claude Code and AI assistants with Node.js LTS, Go, and essential tools" \
+      org.opencontainers.image.url="https://github.com/gherlein/localdev" \
+      org.opencontainers.image.source="https://github.com/gherlein/localdev" \
+      org.opencontainers.image.documentation="https://github.com/gherlein/localdev/blob/main/README.md" \
+      org.opencontainers.image.licenses="MIT" \
+      org.opencontainers.image.vendor="Greg Herlein" \
+      org.opencontainers.image.authors="Greg Herlein"
+
 # Install dependencies
 RUN apt-get update && apt-get install -y \
     sudo \
@@ -202,6 +212,10 @@ RUN go install golang.org/x/tools/cmd/goimports@latest && \
 
 # Switch back to root so the entrypoint can remap UID/GID at runtime
 USER root
+
+# Copy launcher scripts into container for easy extraction
+COPY localdev localdevnet /opt/localdev/bin/
+RUN chmod +x /opt/localdev/bin/*
 
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh

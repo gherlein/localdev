@@ -3,6 +3,16 @@
 # For lightweight container, see Dockerfile (localdev)
 FROM docker.io/eclipse-temurin:17-jdk
 
+# OCI annotations for image metadata
+LABEL org.opencontainers.image.title="localfull" \
+      org.opencontainers.image.description="Full-featured isolated development container for Claude Code with Java 17, Atlassian CLI, multiple Node.js versions, Go, and comprehensive tooling" \
+      org.opencontainers.image.url="https://github.com/gherlein/localdev" \
+      org.opencontainers.image.source="https://github.com/gherlein/localdev" \
+      org.opencontainers.image.documentation="https://github.com/gherlein/localdev/blob/main/README.md" \
+      org.opencontainers.image.licenses="MIT" \
+      org.opencontainers.image.vendor="Greg Herlein" \
+      org.opencontainers.image.authors="Greg Herlein"
+
 # Install dependencies
 RUN apt-get update && apt-get install -y \
     sudo \
@@ -300,5 +310,9 @@ RUN go install github.com/air-verse/air@latest && \
     go install golang.org/x/pkgsite/cmd/pkgsite@latest && \
     go install golang.org/x/tools/cmd/stress@latest && \
     go clean -cache
+
+# Copy launcher scripts into container for easy extraction
+COPY localdev localdevnet localfull /opt/localdev/bin/
+RUN chmod +x /opt/localdev/bin/*
 
 CMD ["/bin/bash"]
