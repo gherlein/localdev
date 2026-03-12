@@ -1,6 +1,7 @@
 # localdev - Lightweight development container (DEFAULT)
 # Optimized for fast startup - no Java, no Atlassian CLI
 # For full container with Java and Atlassian CLI, see Dockerfile.full
+# Multi-arch: supports linux/amd64 and linux/arm64
 FROM debian:bookworm-slim
 
 # OCI annotations for image metadata
@@ -99,12 +100,11 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | d
 # Install Go
 ARG GO_VERSION=1.25.0
 ARG TARGETARCH
-RUN echo "TARGETARCH: ${TARGETARCH}"
-RUN case "${TARGETARCH}" in \
-    "amd64") GOARCH=amd64 ;; \
-    "arm64") GOARCH=arm64 ;; \
-    *) echo "Unsupported architecture: ${TARGETARCH}" && exit 1 ;; \
-    esac && \
+RUN echo "TARGETARCH: ${TARGETARCH}" && \
+    GOARCH="${TARGETARCH}" && \
+    if [ "${TARGETARCH}" = "amd64" ]; then GOARCH=amd64; fi && \
+    if [ "${TARGETARCH}" = "arm64" ]; then GOARCH=arm64; fi && \
+    echo "GOARCH: ${GOARCH}" && \
     curl -fsSL https://dl.google.com/go/go${GO_VERSION}.linux-${GOARCH}.tar.gz | tar --no-same-permissions --no-same-owner -xzC /usr/local
 
 # Set Go environment variables
@@ -114,11 +114,10 @@ ENV PATH="${GOROOT}/bin:${GOPATH}/bin:${PATH}"
 
 # Install TinyGo
 ARG TINYGO_VERSION=0.40.1
-RUN case "${TARGETARCH}" in \
-    "amd64") TINYGO_ARCH=amd64 ;; \
-    "arm64") TINYGO_ARCH=arm64 ;; \
-    *) echo "Unsupported architecture: ${TARGETARCH}" && exit 1 ;; \
-    esac && \
+RUN TINYGO_ARCH="${TARGETARCH}" && \
+    if [ "${TARGETARCH}" = "amd64" ]; then TINYGO_ARCH=amd64; fi && \
+    if [ "${TARGETARCH}" = "arm64" ]; then TINYGO_ARCH=arm64; fi && \
+    echo "TINYGO_ARCH: ${TINYGO_ARCH}" && \
     curl -fsSL "https://github.com/tinygo-org/tinygo/releases/download/v${TINYGO_VERSION}/tinygo_${TINYGO_VERSION}_${TINYGO_ARCH}.deb" -o /tmp/tinygo.deb && \
     dpkg -i /tmp/tinygo.deb && \
     rm /tmp/tinygo.deb
