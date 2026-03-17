@@ -172,7 +172,10 @@ RUN echo '# Stow dotfiles from /external/dotfiles if present (bash package handl
     echo '  unset _dotpkg_dir _dotpkg' >> /etc/bash.bashrc && \
     echo '  [[ -f /external/dotfiles/bash/.bashrc ]] && source /external/dotfiles/bash/.bashrc' >> /etc/bash.bashrc && \
     echo '  [[ -f /external/dotfiles/bash/.bash_profile ]] && source /external/dotfiles/bash/.bash_profile' >> /etc/bash.bashrc && \
-    echo 'fi' >> /etc/bash.bashrc
+    echo 'fi' >> /etc/bash.bashrc && \
+    echo '# Keep ~/bin available but at the end of PATH so container-installed tools' >> /etc/bash.bashrc && \
+    echo '# take precedence over host-mounted binaries built for a different arch.' >> /etc/bash.bashrc && \
+    echo 'export PATH="$(printf "%s" "$PATH" | tr ":" "\n" | grep -v "^/home/developer/bin$" | tr "\n" ":" | sed "s/:$//"):/home/developer/bin"' >> /etc/bash.bashrc
 
 WORKDIR /workspace
 

@@ -225,7 +225,10 @@ RUN echo 'export NVM_DIR=/usr/local/nvm' >> /etc/bash.bashrc && \
 # Claude Code is installed via native installer after switching to developer user
 
 # Repeat for copilot
-RUN echo 'alias copilotd="claude --allow-all-tools"' >> /etc/bash.bashrc
+RUN echo 'alias copilotd="claude --allow-all-tools"' >> /etc/bash.bashrc && \
+    echo '# Keep ~/bin available but at the end of PATH so container-installed tools' >> /etc/bash.bashrc && \
+    echo '# take precedence over host-mounted binaries built for a different arch.' >> /etc/bash.bashrc && \
+    echo 'export PATH="$(printf "%s" "$PATH" | tr ":" "\n" | grep -v "^/home/developer/bin$" | tr "\n" ":" | sed "s/:$//"):/home/developer/bin"' >> /etc/bash.bashrc
 
 # Note: NPM_CONFIG_PREFIX is NOT set because we use nvm to manage npm
 # nvm already configures PATH correctly for npm global packages

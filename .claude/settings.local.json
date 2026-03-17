@@ -22,7 +22,9 @@
       "Bash(if [ -n \"$ANTHROPIC_API_KEY\" ])",
       "Bash(then echo \"API key is set\")",
       "Bash(else echo \"No API key environment variable\")",
-      "Bash(fi)"
+      "Bash(fi)",
+      "Bash(podman image prune:*)",
+      "Bash(podman system prune:*)"
     ],
     "deny": [],
     "ask": []
