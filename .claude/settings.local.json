@@ -24,7 +24,10 @@
       "Bash(else echo \"No API key environment variable\")",
       "Bash(fi)",
       "Bash(podman image prune:*)",
-      "Bash(podman system prune:*)"
+      "Bash(podman system prune:*)",
+      "Bash(git -C /Users/gherlein/herlein/src/localdev log --oneline -5)",
+      "Bash(git -C /Users/gherlein/herlein/src/localdev diff --stat HEAD)",
+      "Bash(gh run:*)"
     ],
     "deny": [],
     "ask": []

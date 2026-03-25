@@ -23,7 +23,7 @@ ifeq ($(ARCH),arm64)
 endif
 
 .PHONY: help all default full build build-full no-cache no-cache-default no-cache-full
-.PHONY: publish publish-local publish-full publish-full-local publish-all pull pull-full run run-full install install-scripts pre
+.PHONY: publish publish-local publish-full publish-full-local publish-all pull pull-full run run-full install install-scripts pre login
 
 help:
 	@echo "Available targets:"
@@ -59,6 +59,7 @@ help:
 	@echo "  install        - Install launchers from local files (requires repo clone)"
 	@echo "  install-scripts - Extract launchers from container image (no clone needed)"
 	@echo "  pre            - Install podman (apt)"
+	@echo "  login          - Log in to $(REGISTRY) (required before pushing)"
 	@echo ""
 	@echo "Variables:"
 	@echo "  VERSION        - Image tag (default: latest). Example: make build VERSION=v1.0.0"
@@ -217,6 +218,9 @@ run:
 
 run-full:
 	podman run --rm -it -v "$(shell pwd):/workspace" $(IMAGE_FULL):$(VERSION) bash
+
+login:
+	podman login $(REGISTRY)
 
 pre:
 	sudo apt-get -y install podman

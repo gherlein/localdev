@@ -257,6 +257,7 @@ podman run -it --rm \
   -v "${MOUNTS_TMPFILE}:/home/developer/mounts:ro" \
   -e HOST_UID=$(id -u) \
   -e HOST_GID=$(id -g) \
+  -e WORKSPACE="/${DIR_NAME}" \
   -w "/${DIR_NAME}" \
   ghcr.io/gherlein/localdev:latest \
   bash

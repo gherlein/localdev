@@ -175,9 +175,11 @@ RUN echo '# Stow dotfiles from /external/dotfiles if present (bash package handl
     echo 'fi' >> /etc/bash.bashrc && \
     echo '# Keep ~/bin available but at the end of PATH so container-installed tools' >> /etc/bash.bashrc && \
     echo '# take precedence over host-mounted binaries built for a different arch.' >> /etc/bash.bashrc && \
-    echo 'export PATH="$(printf "%s" "$PATH" | tr ":" "\n" | grep -v "^/home/developer/bin$" | tr "\n" ":" | sed "s/:$//"):/home/developer/bin"' >> /etc/bash.bashrc
+    echo 'export PATH="$(printf "%s" "$PATH" | tr ":" "\n" | grep -v "^/home/developer/bin$" | tr "\n" ":" | sed "s/:$//"):/home/developer/bin"' >> /etc/bash.bashrc && \
+    echo '# Return to workspace after dotfiles may have changed directory' >> /etc/bash.bashrc && \
+    echo '[[ -n "$WORKSPACE" && -d "$WORKSPACE" ]] && cd "$WORKSPACE"' >> /etc/bash.bashrc
 
-WORKDIR /workspace
+WORKDIR /home/developer
 
 # Install udev and USB libraries for device access
 RUN apt-get update && apt-get install -y \
