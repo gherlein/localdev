@@ -41,7 +41,8 @@ RUN apt-get update && apt-get install -y \
     zoxide \
     keychain \
     direnv \
-    ca-certificates && rm -rf /var/lib/apt/lists/*
+    ca-certificates \
+    zstd && rm -rf /var/lib/apt/lists/*
 
 # Install Node.js LTS only using nvm
 ENV NVM_DIR=/usr/local/nvm
@@ -65,6 +66,9 @@ RUN . $NVM_DIR/nvm.sh && \
 
 # Add node to PATH at container level (required for scripts like clauded)
 ENV PATH="$NVM_DIR/default/bin:${PATH}"
+
+# Install Ollama
+RUN curl -fsSL https://ollama.com/install.sh | sh
 
 # Install Podman
 RUN apt-get update && apt-get install -y \
@@ -139,7 +143,8 @@ RUN . $NVM_DIR/nvm.sh && \
     ts-node \
     pnpm \
     eslint \
-    prettier && \
+    prettier \
+    @mariozechner/pi-coding-agent && \
     npm cache clean --force
 
 # Setup lazy-load nvm in bash for all users (loads on first use)

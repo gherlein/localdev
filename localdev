@@ -171,6 +171,22 @@ else
   echo "Info: $HOME/.claude could not be created, skipping mount" >&2
 fi
 
+# Handle .pi directory mount (pi-coding-agent global config)
+mkdir -p "$HOME/.pi" 2>/dev/null || true
+PI_MOUNT=()
+if [[ -d "$HOME/.pi" ]]; then
+  if [[ -r "$HOME/.pi" ]]; then
+    PI_MOUNT=("-v" "$HOME/.pi:/home/developer/.pi:rw")
+    echo "Mounting (read-write): $HOME/.pi -> /home/developer/.pi" >&2
+    MOUNTS_CONTENT+="$HOME/.pi -> /home/developer/.pi (read-write)\n"
+  else
+    echo "Warning: $HOME/.pi exists but is not readable, skipping mount" >&2
+    ((MOUNT_ERRORS++))
+  fi
+else
+  echo "Info: $HOME/.pi could not be created, skipping mount" >&2
+fi
+
 # Handle host ~/bin mount for developer tools available inside the container
 HOST_BIN_MOUNT=()
 if [[ -d "$HOME/bin" ]]; then
@@ -250,6 +266,7 @@ podman run -it --rm \
   -v "$(pwd):/${DIR_NAME}" \
   "${DOTFILES_MOUNT[@]}" \
   "${CLAUDE_MOUNT[@]}" \
+  "${PI_MOUNT[@]}" \
   "${HOST_BIN_MOUNT[@]}" \
   "${NPM_CACHE_MOUNT[@]}" \
   "${VOLUME_MOUNTS[@]}" \
