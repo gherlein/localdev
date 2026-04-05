@@ -171,6 +171,22 @@ else
   echo "Info: $HOME/.claude could not be created, skipping mount" >&2
 fi
 
+# Handle .pi directory mount (pi-coding-agent global config)
+mkdir -p "$HOME/.pi" 2>/dev/null || true
+PI_MOUNT=()
+if [[ -d "$HOME/.pi" ]]; then
+  if [[ -r "$HOME/.pi" ]]; then
+    PI_MOUNT=("-v" "$HOME/.pi:/home/developer/.pi:rw")
+    echo "Mounting (read-write): $HOME/.pi -> /home/developer/.pi" >&2
+    MOUNTS_CONTENT+="$HOME/.pi -> /home/developer/.pi (read-write)\n"
+  else
+    echo "Warning: $HOME/.pi exists but is not readable, skipping mount" >&2
+    ((MOUNT_ERRORS++))
+  fi
+else
+  echo "Info: $HOME/.pi could not be created, skipping mount" >&2
+fi
+
 # Handle host ~/bin mount for developer tools available inside the container
 HOST_BIN_MOUNT=()
 if [[ -d "$HOME/bin" ]]; then
@@ -180,6 +196,19 @@ if [[ -d "$HOME/bin" ]]; then
     MOUNTS_CONTENT+="$HOME/bin -> /home/developer/bin (read-only)\n"
   else
     echo "Warning: $HOME/bin exists but is not readable, skipping mount" >&2
+    ((MOUNT_ERRORS++))
+  fi
+fi
+
+# Handle pi-agent directory mount (symlink target for .pi config)
+PI_AGENT_MOUNT=()
+if [[ -d "$HOME/pi-agent" ]]; then
+  if [[ -r "$HOME/pi-agent" ]]; then
+    PI_AGENT_MOUNT=("-v" "$HOME/pi-agent:/home/developer/pi-agent:ro")
+    echo "Mounting (read-only):  $HOME/pi-agent -> /home/developer/pi-agent" >&2
+    MOUNTS_CONTENT+="$HOME/pi-agent -> /home/developer/pi-agent (read-only)\n"
+  else
+    echo "Warning: $HOME/pi-agent exists but is not readable, skipping mount" >&2
     ((MOUNT_ERRORS++))
   fi
 fi
@@ -242,6 +271,8 @@ podman run -it --rm \
   -v "$(pwd):/${DIR_NAME}" \
   "${DOTFILES_MOUNT[@]}" \
   "${CLAUDE_MOUNT[@]}" \
+  "${PI_MOUNT[@]}" \
+  "${PI_AGENT_MOUNT[@]}" \
   "${HOST_BIN_MOUNT[@]}" \
   "${NPM_CACHE_MOUNT[@]}" \
   "${VOLUME_MOUNTS[@]}" \
