@@ -171,6 +171,22 @@ else
   echo "Info: $HOME/.claude could not be created, skipping mount" >&2
 fi
 
+# Handle .opencode directory mount (native location for opencode global config)
+mkdir -p "$HOME/.opencode" 2>/dev/null || true
+OPENCODE_MOUNT=()
+if [[ -d "$HOME/.opencode" ]]; then
+  if [[ -r "$HOME/.opencode" ]]; then
+    OPENCODE_MOUNT=("-v" "$HOME/.opencode:/home/developer/.opencode:rw")
+    echo "Mounting (read-write): $HOME/.opencode -> /home/developer/.opencode" >&2
+    MOUNTS_CONTENT+="$HOME/.opencode -> /home/developer/.opencode (read-write)\n"
+  else
+    echo "Warning: $HOME/.opencode exists but is not readable, skipping mount" >&2
+    ((MOUNT_ERRORS++))
+  fi
+else
+  echo "Info: $HOME/.opencode could not be created, skipping mount" >&2
+fi
+
 # Handle .pi directory mount (pi-coding-agent global config)
 mkdir -p "$HOME/.pi" 2>/dev/null || true
 PI_MOUNT=()
@@ -187,6 +203,22 @@ else
   echo "Info: $HOME/.pi could not be created, skipping mount" >&2
 fi
 
+# Handle .pi-go directory mount (pi-go global config)
+mkdir -p "$HOME/.pi-go" 2>/dev/null || true
+PI_GO_MOUNT=()
+if [[ -d "$HOME/.pi-go" ]]; then
+  if [[ -r "$HOME/.pi-go" ]]; then
+    PI_GO_MOUNT=("-v" "$HOME/.pi-go:/home/developer/.pi-go:rw")
+    echo "Mounting (read-write): $HOME/.pi-go -> /home/developer/.pi-go" >&2
+    MOUNTS_CONTENT+="$HOME/.pi-go -> /home/developer/.pi-go (read-write)\n"
+  else
+    echo "Warning: $HOME/.pi-go exists but is not readable, skipping mount" >&2
+    ((MOUNT_ERRORS++))
+  fi
+else
+  echo "Info: $HOME/.pi-go could not be created, skipping mount" >&2
+fi
+
 # Handle pi-agent directory mount (symlink target for .pi config)
 PI_AGENT_MOUNT=()
 if [[ -d "$HOME/pi-agent" ]]; then
@@ -196,6 +228,35 @@ if [[ -d "$HOME/pi-agent" ]]; then
     MOUNTS_CONTENT+="$HOME/pi-agent -> /home/developer/pi-agent (read-only)\n"
   else
     echo "Warning: $HOME/pi-agent exists but is not readable, skipping mount" >&2
+    ((MOUNT_ERRORS++))
+  fi
+fi
+
+# Handle .kit directory mount (kit CLI session/config state)
+mkdir -p "$HOME/.kit" 2>/dev/null || true
+KIT_MOUNT=()
+if [[ -d "$HOME/.kit" ]]; then
+  if [[ -r "$HOME/.kit" ]]; then
+    KIT_MOUNT=("-v" "$HOME/.kit:/home/developer/.kit:rw")
+    echo "Mounting (read-write): $HOME/.kit -> /home/developer/.kit" >&2
+    MOUNTS_CONTENT+="$HOME/.kit -> /home/developer/.kit (read-write)\n"
+  else
+    echo "Warning: $HOME/.kit exists but is not readable, skipping mount" >&2
+    ((MOUNT_ERRORS++))
+  fi
+else
+  echo "Info: $HOME/.kit could not be created, skipping mount" >&2
+fi
+
+# Handle .kit.yml file mount (kit CLI config file)
+KIT_YML_MOUNT=()
+if [[ -f "$HOME/.kit.yml" ]]; then
+  if [[ -r "$HOME/.kit.yml" ]]; then
+    KIT_YML_MOUNT=("-v" "$HOME/.kit.yml:/home/developer/.kit.yml:rw")
+    echo "Mounting (read-write): $HOME/.kit.yml -> /home/developer/.kit.yml" >&2
+    MOUNTS_CONTENT+="$HOME/.kit.yml -> /home/developer/.kit.yml (read-write)\n"
+  else
+    echo "Warning: $HOME/.kit.yml exists but is not readable, skipping mount" >&2
     ((MOUNT_ERRORS++))
   fi
 fi
@@ -279,8 +340,12 @@ podman run -it --rm \
   -v "$(pwd):/${DIR_NAME}" \
   "${DOTFILES_MOUNT[@]}" \
   "${CLAUDE_MOUNT[@]}" \
+  "${OPENCODE_MOUNT[@]}" \
   "${PI_MOUNT[@]}" \
+  "${PI_GO_MOUNT[@]}" \
   "${PI_AGENT_MOUNT[@]}" \
+  "${KIT_MOUNT[@]}" \
+  "${KIT_YML_MOUNT[@]}" \
   "${HOST_BIN_MOUNT[@]}" \
   "${NPM_CACHE_MOUNT[@]}" \
   "${VOLUME_MOUNTS[@]}" \

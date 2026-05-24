@@ -23,7 +23,7 @@ ifeq ($(ARCH),arm64)
 endif
 
 .PHONY: help all default full build build-full no-cache no-cache-default no-cache-full
-.PHONY: publish publish-local publish-full publish-full-local publish-all pull pull-full run run-full install install-scripts pre login
+.PHONY: publish publish-local publish-only publish-full publish-full-local publish-all pull pull-full run run-full install install-scripts pre login
 
 help:
 	@echo "Available targets:"
@@ -41,6 +41,7 @@ help:
 	@echo "Publish targets:"
 	@echo "  publish        - Build and push multi-arch localdev (requires GitHub Actions)"
 	@echo "  publish-local  - Push current platform localdev build to $(IMAGE_DEV):$(VERSION)"
+	@echo "  publish-only   - Push existing localdev image without rebuilding"
 	@echo "  publish-full   - Build and push multi-arch localfull (requires GitHub Actions)"
 	@echo "  publish-full-local - Push current platform localfull build"
 	@echo "  publish-all    - Publish both containers (multi-arch, requires GitHub Actions)"
@@ -118,6 +119,21 @@ publish-local: build
 		echo "Published $(IMAGE_DEV):$(VERSION) and $(IMAGE_DEV):latest"; \
 	else \
 		echo "Published $(IMAGE_DEV):$(VERSION)"; \
+	fi
+
+publish-only:
+	@if ! podman image exists "$(IMAGE_DEV):$(VERSION)"; then \
+		echo "Error: $(IMAGE_DEV):$(VERSION) not found locally. Run 'make build' first."; \
+		exit 1; \
+	fi
+	@echo "Pushing existing $(IMAGE_DEV):$(VERSION) (no rebuild)..."
+	podman push "$(IMAGE_DEV):$(VERSION)"
+	@if [ "$(VERSION)" != "latest" ]; then \
+		podman tag "$(IMAGE_DEV):$(VERSION)" "$(IMAGE_DEV):latest"; \
+		podman push "$(IMAGE_DEV):latest"; \
+		echo "Pushed $(IMAGE_DEV):$(VERSION) and $(IMAGE_DEV):latest"; \
+	else \
+		echo "Pushed $(IMAGE_DEV):$(VERSION)"; \
 	fi
 
 publish: build

@@ -36,6 +36,19 @@ RUN apt-get update && apt-get install -y \
     tmux \
     rsync && rm -rf /var/lib/apt/lists/*
 
+# Install pandoc and WeasyPrint runtime dependencies for markdown -> PDF
+RUN apt-get update && apt-get install -y \
+    pandoc \
+    libpango-1.0-0 \
+    libpangoft2-1.0-0 \
+    libharfbuzz0b \
+    libcairo2 \
+    libgdk-pixbuf-2.0-0 \
+    libffi8 \
+    shared-mime-info \
+    fonts-dejavu \
+    fonts-liberation && rm -rf /var/lib/apt/lists/*
+
 # Install Node.js using nvm to support multiple versions
 ENV NVM_DIR=/usr/local/nvm
 ENV NODE_VERSION_14=14.16.0
@@ -81,7 +94,7 @@ RUN mkdir -p /etc/containers && \
     echo 'utsns="host"' >> /etc/containers/containers.conf && \
     echo 'cgroupns="host"' >> /etc/containers/containers.conf && \
     echo 'cgroups="disabled"' >> /etc/containers/containers.conf && \
-    echo 'devices="/dev/null"' >> /etc/containers/containers.conf && \
+    echo 'devices=["/dev/null"]' >> /etc/containers/containers.conf && \
     echo '[engine]' >> /etc/containers/containers.conf && \
     echo 'cgroup_manager="cgroupfs"' >> /etc/containers/containers.conf && \
     echo 'events_logger="file"' >> /etc/containers/containers.conf && \
@@ -252,6 +265,12 @@ USER developer
 # Install Claude Code using native installer
 RUN curl -fsSL https://claude.ai/install.sh | bash
 
+# Install opencode
+RUN curl -fsSL https://opencode.ai/install | bash
+
+# Add opencode to PATH for non-interactive use
+ENV PATH="/home/developer/.opencode/bin:${PATH}"
+
 # Create clauded wrapper for dangerously-skip-permissions mode
 RUN mkdir -p "$HOME/.local/bin" && \
     echo '#!/bin/bash' > "$HOME/.local/bin/clauded" && \
@@ -269,6 +288,9 @@ ENV PATH="/home/developer/.local/bin:${PATH}"
 
 # Install md2pdf
 RUN /home/developer/.local/bin/uv tool install md2pdf
+
+# Install WeasyPrint as an isolated uv tool (used by pandoc --pdf-engine=weasyprint)
+RUN /home/developer/.local/bin/uv tool install weasyprint
 
 # Install Go development tools and linters (split into groups for better reliability)
 # go clean -cache after each group to avoid filling disk with build artifacts
@@ -308,6 +330,10 @@ RUN go install github.com/nats-io/nats-server/v2@latest && \
 RUN go install github.com/air-verse/air@latest && \
     go install golang.org/x/pkgsite/cmd/pkgsite@latest && \
     go install golang.org/x/tools/cmd/stress@latest && \
+    go clean -cache
+
+# Install kit (Claude Code agent helper)
+RUN go install github.com/mark3labs/kit/cmd/kit@latest && \
     go clean -cache
 
 # Switch back to root so the entrypoint can remap UID/GID at runtime

@@ -44,6 +44,19 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     zstd && rm -rf /var/lib/apt/lists/*
 
+# Install pandoc and WeasyPrint runtime dependencies for markdown -> PDF
+RUN apt-get update && apt-get install -y \
+    pandoc \
+    libpango-1.0-0 \
+    libpangoft2-1.0-0 \
+    libharfbuzz0b \
+    libcairo2 \
+    libgdk-pixbuf-2.0-0 \
+    libffi8 \
+    shared-mime-info \
+    fonts-dejavu \
+    fonts-liberation && rm -rf /var/lib/apt/lists/*
+
 # Install Node.js LTS only using nvm
 ENV NVM_DIR=/usr/local/nvm
 
@@ -67,9 +80,6 @@ RUN . $NVM_DIR/nvm.sh && \
 # Add node to PATH at container level (required for scripts like clauded)
 ENV PATH="$NVM_DIR/default/bin:${PATH}"
 
-# Install Ollama
-RUN curl -fsSL https://ollama.com/install.sh | sh
-
 # Install Podman
 RUN apt-get update && apt-get install -y \
     podman \
@@ -87,7 +97,7 @@ RUN mkdir -p /etc/containers && \
     echo 'utsns="host"' >> /etc/containers/containers.conf && \
     echo 'cgroupns="host"' >> /etc/containers/containers.conf && \
     echo 'cgroups="disabled"' >> /etc/containers/containers.conf && \
-    echo 'devices="/dev/null"' >> /etc/containers/containers.conf && \
+    echo 'devices=["/dev/null"]' >> /etc/containers/containers.conf && \
     echo '[engine]' >> /etc/containers/containers.conf && \
     echo 'cgroup_manager="cgroupfs"' >> /etc/containers/containers.conf && \
     echo 'events_logger="file"' >> /etc/containers/containers.conf && \
@@ -126,6 +136,19 @@ RUN TINYGO_ARCH="${TARGETARCH}" && \
     dpkg -i /tmp/tinygo.deb && \
     rm /tmp/tinygo.deb
 
+# Install pi-go
+ARG PI_GO_VERSION=0.0.32
+RUN PI_GO_ARCH="${TARGETARCH}" && \
+    if [ "${TARGETARCH}" = "amd64" ]; then PI_GO_ARCH=amd64; fi && \
+    if [ "${TARGETARCH}" = "arm64" ]; then PI_GO_ARCH=arm64; fi && \
+    echo "PI_GO_ARCH: ${PI_GO_ARCH}" && \
+    curl -fsSL "https://github.com/dimetron/pi-go/releases/download/v${PI_GO_VERSION}/pi-go_${PI_GO_VERSION}_linux_${PI_GO_ARCH}.tar.gz" -o /tmp/pi-go.tar.gz && \
+    mkdir -p /tmp/pi-go-extract && \
+    tar -xzf /tmp/pi-go.tar.gz -C /tmp/pi-go-extract && \
+    mv /tmp/pi-go-extract/pi /usr/local/bin/pi && \
+    chmod +x /usr/local/bin/pi && \
+    rm -rf /tmp/pi-go.tar.gz /tmp/pi-go-extract
+
 # Create a new user with UID/GID 1000 to match host user
 RUN (groupadd -g 1000 developer 2>/dev/null || groupmod -n developer $(getent group 1000 | cut -d: -f1)) && \
     (useradd -m -u 1000 -g 1000 -s /bin/bash developer 2>/dev/null || \
@@ -143,8 +166,7 @@ RUN . $NVM_DIR/nvm.sh && \
     ts-node \
     pnpm \
     eslint \
-    prettier \
-    @mariozechner/pi-coding-agent && \
+    prettier && \
     npm cache clean --force
 
 # Setup lazy-load nvm in bash for all users (loads on first use)
@@ -207,6 +229,12 @@ RUN mkdir -p "$HOME/.npm-global" && \
 # Install Claude Code using native installer
 RUN curl -fsSL https://claude.ai/install.sh | bash
 
+# Install opencode
+RUN curl -fsSL https://opencode.ai/install | bash
+
+# Add opencode to PATH for non-interactive use
+ENV PATH="/home/developer/.opencode/bin:${PATH}"
+
 # install uv with retry logic
 RUN for i in 1 2 3; do \
     curl -LsSf https://astral.sh/uv/install.sh | sh && break || \
@@ -216,10 +244,14 @@ RUN for i in 1 2 3; do \
 # Add uv to PATH
 ENV PATH="/home/developer/.local/bin:${PATH}"
 
+# Install WeasyPrint as an isolated uv tool (used by pandoc --pdf-engine=weasyprint)
+RUN /home/developer/.local/bin/uv tool install weasyprint
+
 # Install essential Go tools only
 RUN go install golang.org/x/tools/cmd/goimports@latest && \
     go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest && \
-    go install github.com/go-delve/delve/cmd/dlv@latest
+    go install github.com/go-delve/delve/cmd/dlv@latest && \
+    go install github.com/mark3labs/kit/cmd/kit@latest
 
 # Switch back to root so the entrypoint can remap UID/GID at runtime
 USER root
