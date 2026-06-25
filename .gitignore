@@ -4,3 +4,5 @@ external-preexist/
 *~
 .env
 .envrc
+bin/
+.llm/
