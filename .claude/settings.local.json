@@ -25,9 +25,9 @@
       "Bash(fi)",
       "Bash(podman image prune:*)",
       "Bash(podman system prune:*)",
-      "Bash(git -C /Users/gherlein/herlein/src/localdev log --oneline -5)",
-      "Bash(git -C /Users/gherlein/herlein/src/localdev diff --stat HEAD)",
-      "Bash(gh run:*)"
+      "Bash(gh run:*)",
+      "Bash(git -C /home/gherlein/h/src/localdev log --oneline -5)",
+      "Bash(git -C /home/gherlein/h/src/localdev diff --stat HEAD)"
     ],
     "deny": [],
     "ask": []

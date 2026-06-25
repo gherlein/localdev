@@ -7,6 +7,13 @@ HOST_GID=${HOST_GID:-1000}
 # Remap the developer user's UID/GID to match the host user so that files
 # written to bind-mounted volumes have the correct ownership on the host.
 if [ "$(id -u)" = "0" ]; then
+    # If the host user's home differs from /home/developer, symlink it so that
+    # any absolute paths baked into config files (e.g. plugin JSON) resolve correctly.
+    if [ -n "$HOST_HOME" ] && [ "$HOST_HOME" != "/home/developer" ]; then
+        mkdir -p "$(dirname "$HOST_HOME")"
+        ln -sfn /home/developer "$HOST_HOME"
+    fi
+
     if [ "$HOST_GID" != "1000" ]; then
         # Check if the target GID already exists
         if ! getent group "$HOST_GID" >/dev/null 2>&1; then

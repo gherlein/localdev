@@ -136,18 +136,6 @@ RUN TINYGO_ARCH="${TARGETARCH}" && \
     dpkg -i /tmp/tinygo.deb && \
     rm /tmp/tinygo.deb
 
-# Install pi-go
-ARG PI_GO_VERSION=0.0.32
-RUN PI_GO_ARCH="${TARGETARCH}" && \
-    if [ "${TARGETARCH}" = "amd64" ]; then PI_GO_ARCH=amd64; fi && \
-    if [ "${TARGETARCH}" = "arm64" ]; then PI_GO_ARCH=arm64; fi && \
-    echo "PI_GO_ARCH: ${PI_GO_ARCH}" && \
-    curl -fsSL "https://github.com/dimetron/pi-go/releases/download/v${PI_GO_VERSION}/pi-go_${PI_GO_VERSION}_linux_${PI_GO_ARCH}.tar.gz" -o /tmp/pi-go.tar.gz && \
-    mkdir -p /tmp/pi-go-extract && \
-    tar -xzf /tmp/pi-go.tar.gz -C /tmp/pi-go-extract && \
-    mv /tmp/pi-go-extract/pi /usr/local/bin/pi && \
-    chmod +x /usr/local/bin/pi && \
-    rm -rf /tmp/pi-go.tar.gz /tmp/pi-go-extract
 
 # Create a new user with UID/GID 1000 to match host user
 RUN (groupadd -g 1000 developer 2>/dev/null || groupmod -n developer $(getent group 1000 | cut -d: -f1)) && \

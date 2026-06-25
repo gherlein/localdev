@@ -203,22 +203,6 @@ else
   echo "Info: $HOME/.pi could not be created, skipping mount" >&2
 fi
 
-# Handle .pi-go directory mount (pi-go global config)
-mkdir -p "$HOME/.pi-go" 2>/dev/null || true
-PI_GO_MOUNT=()
-if [[ -d "$HOME/.pi-go" ]]; then
-  if [[ -r "$HOME/.pi-go" ]]; then
-    PI_GO_MOUNT=("-v" "$HOME/.pi-go:/home/developer/.pi-go:rw")
-    echo "Mounting (read-write): $HOME/.pi-go -> /home/developer/.pi-go" >&2
-    MOUNTS_CONTENT+="$HOME/.pi-go -> /home/developer/.pi-go (read-write)\n"
-  else
-    echo "Warning: $HOME/.pi-go exists but is not readable, skipping mount" >&2
-    ((MOUNT_ERRORS++))
-  fi
-else
-  echo "Info: $HOME/.pi-go could not be created, skipping mount" >&2
-fi
-
 # Handle pi-agent directory mount (symlink target for .pi config)
 PI_AGENT_MOUNT=()
 if [[ -d "$HOME/pi-agent" ]]; then
@@ -342,7 +326,6 @@ podman run -it --rm \
   "${CLAUDE_MOUNT[@]}" \
   "${OPENCODE_MOUNT[@]}" \
   "${PI_MOUNT[@]}" \
-  "${PI_GO_MOUNT[@]}" \
   "${PI_AGENT_MOUNT[@]}" \
   "${KIT_MOUNT[@]}" \
   "${KIT_YML_MOUNT[@]}" \
@@ -353,6 +336,7 @@ podman run -it --rm \
   -v "${MOUNTS_TMPFILE}:/home/developer/mounts:ro" \
   -e HOST_UID=$(id -u) \
   -e HOST_GID=$(id -g) \
+  -e HOST_HOME="$HOME" \
   -e WORKSPACE="/${DIR_NAME}" \
   -w "/${DIR_NAME}" \
   ghcr.io/gherlein/localdev:latest \

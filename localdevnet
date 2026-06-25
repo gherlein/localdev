@@ -314,6 +314,7 @@ podman run -it --rm \
   -v "${MOUNTS_TMPFILE}:/home/developer/mounts:ro" \
   -e HOST_UID=$(id -u) \
   -e HOST_GID=$(id -g) \
+  -e HOST_HOME="$HOME" \
   -e WORKSPACE="/${DIR_NAME}" \
   -w "/${DIR_NAME}" \
   --network host \
