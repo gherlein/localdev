@@ -40,5 +40,11 @@ if [ "$(id -u)" = "0" ]; then
     fi
     exec gosu developer "$@"
 else
+    # Running as non-root (e.g. --userns=keep-id). Create the host-home symlink
+    # with sudo so that absolute paths baked into config files resolve correctly.
+    if [ -n "$HOST_HOME" ] && [ "$HOST_HOME" != "/home/developer" ] && [ ! -e "$HOST_HOME" ]; then
+        sudo mkdir -p "$(dirname "$HOST_HOME")" 2>/dev/null || true
+        sudo ln -sfn /home/developer "$HOST_HOME" 2>/dev/null || true
+    fi
     exec "$@"
 fi

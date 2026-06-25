@@ -171,6 +171,14 @@ else
   echo "Info: $HOME/.claude could not be created, skipping mount" >&2
 fi
 
+# Named volume for container-specific Claude Code plugin cache.
+# Shadows ~/.claude/plugins inside the container so the host and container each maintain
+# independent plugin installations (plugin paths contain absolute home-directory prefixes
+# that differ between host and container).
+CLAUDE_PLUGINS_MOUNT=("-v" "localdev-claude-plugins:/home/developer/.claude/plugins:rw")
+echo "Mounting (named vol):  localdev-claude-plugins -> /home/developer/.claude/plugins" >&2
+MOUNTS_CONTENT+="localdev-claude-plugins -> /home/developer/.claude/plugins (named volume)\n"
+
 # Handle .opencode directory mount (native location for opencode global config)
 mkdir -p "$HOME/.opencode" 2>/dev/null || true
 OPENCODE_MOUNT=()
@@ -324,6 +332,7 @@ podman run -it --rm \
   -v "$(pwd):/${DIR_NAME}" \
   "${DOTFILES_MOUNT[@]}" \
   "${CLAUDE_MOUNT[@]}" \
+  "${CLAUDE_PLUGINS_MOUNT[@]}" \
   "${OPENCODE_MOUNT[@]}" \
   "${PI_MOUNT[@]}" \
   "${PI_AGENT_MOUNT[@]}" \
