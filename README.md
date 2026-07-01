@@ -499,6 +499,105 @@ podman run --rm -it \
   bash
 ```
 
+## Running on a DigitalOcean Droplet
+
+A DigitalOcean Droplet is just another Linux host, so the same launcher scripts and pre-built images work there. This gives you a remote, SSH-accessible dev box where Claude Code can run in dangerous mode without touching your laptop. Because you pull the pre-built image (rather than building it), a modest Droplet is sufficient.
+
+### 1. Create the Droplet
+
+Recommended baseline:
+
+| Setting | Value |
+|---------|-------|
+| Image | Ubuntu 24.04 LTS |
+| Plan | Basic, 2 vCPU / 4 GB RAM (pulling the image, not building) |
+| Auth | SSH key (not password) |
+| Region | Closest to you for lowest SSH latency |
+
+Building the container locally on the Droplet (`make build`) needs ~16 GB RAM; pulling the published image does not, so size up only if you intend to build.
+
+Via the control panel, or with the `doctl` CLI:
+
+```bash
+# Authenticate doctl once (creates a token at cloud.digitalocean.com/account/api)
+doctl auth init
+
+# Create the Droplet (replace the SSH key fingerprint with yours from `doctl compute ssh-key list`)
+doctl compute droplet create localdev \
+  --image ubuntu-24-04-x64 \
+  --size s-2vcpu-4gb \
+  --region nyc3 \
+  --ssh-keys <your-ssh-key-fingerprint>
+
+# Get its public IP
+doctl compute droplet list localdev
+```
+
+### 2. Connect and Install Podman
+
+SSH in, then create a non-root user (rootless Podman and `--userns=keep-id` expect a normal user with subuid/subgid mappings):
+
+```bash
+ssh root@<droplet-ip>
+
+# Create a working user with sudo and a login shell
+adduser dev
+usermod -aG sudo dev
+
+# Install Podman
+apt-get update && apt-get install -y podman
+
+# Ubuntu 24.04 configures /etc/subuid and /etc/subgid for new users automatically.
+# Verify the new user has mappings (required for --userns=keep-id):
+grep dev /etc/subuid /etc/subgid
+
+# Switch to the working user for everything below
+su - dev
+```
+
+### 3. Install Launcher Scripts and Pull the Image
+
+```bash
+# Install launcher scripts to ~/bin
+curl -fsSL https://raw.githubusercontent.com/gherlein/localdev/main/install.sh | bash
+
+# Ensure ~/bin is on PATH (add to ~/.bashrc if the installer warned you)
+export PATH="$HOME/bin:$PATH"
+
+# Pull the image
+podman pull ghcr.io/gherlein/localdev:latest
+```
+
+### 4. Authenticate Claude Code
+
+The launcher passes `ANTHROPIC_API_KEY` through to the container if it is set on the host. Either export it before running, or run `claude` once inside the container and complete the interactive login:
+
+```bash
+# Option A: API key (the launcher forwards this env var into the container)
+export ANTHROPIC_API_KEY="sk-ant-..."
+
+# Option B: log in interactively the first time you start `claude` inside the container
+```
+
+Set the key in `~/.bashrc` (not in a repo file) so it survives reconnects. The mounted `~/.claude` directory persists your Claude config and login between container runs.
+
+### 5. Run
+
+```bash
+# Clone or create your project on the Droplet, then launch from inside it
+git clone git@github.com:you/your-project.git
+cd your-project
+localdev
+```
+
+### Droplet Notes
+
+- **Networking**: `localdev` uses isolated container networking. Use `localdevnet` (host networking) if the container must reach services on the Droplet's localhost or private VPC.
+- **USB passthrough**: automatically disabled — cloud Droplets have no `/dev/bus/usb`. All other functionality is unaffected.
+- **Persistence**: the container runs with `--rm`, but your project directory and `~/.claude` live on the Droplet's disk and persist across runs and reboots.
+- **Cost**: destroy the Droplet when idle (`doctl compute droplet delete localdev`) to stop billing; the image can be re-pulled in minutes. Consider a snapshot if you want to preserve installed state.
+- **Firewall**: restrict inbound to SSH (port 22). Nothing in `localdev` needs to expose ports unless your own project does.
+
 ## Using the Container
 
 ### Launcher Scripts

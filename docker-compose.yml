@@ -5,11 +5,15 @@ services:
     build: .
     volumes:
       - .:/workspace
+      # Forward the host SSH agent so git SSH operations use the host's already-unlocked
+      # keys. Falls back to /dev/null when no agent is running so interpolation succeeds.
+      - ${SSH_AUTH_SOCK:-/dev/null}:/ssh-agent
     environment:
       # Pass your host user's UID and GID to the container
       - HOST_UID=${UID:-1000}
       - HOST_GID=${GID:-1000}
       - CLAUDE_CODE_THEME=light
+      - SSH_AUTH_SOCK=/ssh-agent
     working_dir: /workspace
     stdin_open: true
     tty: true

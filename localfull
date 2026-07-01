@@ -269,6 +269,34 @@ else
   echo "Info: npm cache mount unavailable, npx will be slower on first use" >&2
 fi
 
+# Handle SSH keys mount so git SSH operations (and plugin installs) work inside the container.
+# Provides known_hosts and public keys; mounted read-only to protect host keys from container writes.
+SSH_MOUNT=()
+if [[ -d "$HOME/.ssh" ]]; then
+  if [[ -r "$HOME/.ssh" ]]; then
+    SSH_MOUNT=("-v" "$HOME/.ssh:/home/developer/.ssh:ro")
+    echo "Mounting (read-only):  $HOME/.ssh -> /home/developer/.ssh" >&2
+    MOUNTS_CONTENT+="$HOME/.ssh -> /home/developer/.ssh (read-only)\n"
+  else
+    echo "Warning: $HOME/.ssh exists but is not readable, skipping mount" >&2
+    ((MOUNT_ERRORS++))
+  fi
+fi
+
+# Forward the host SSH agent so git SSH operations use the host's already-unlocked
+# keys. The on-disk keys in ~/.ssh are passphrase-encrypted and the container has no
+# agent of its own; --userns=keep-id preserves the host UID so the socket is accessible.
+SSH_AGENT_MOUNT=()
+SSH_AGENT_ENV=()
+if [[ -n "$SSH_AUTH_SOCK" && -S "$SSH_AUTH_SOCK" ]]; then
+  SSH_AGENT_MOUNT=("-v" "$SSH_AUTH_SOCK:/ssh-agent")
+  SSH_AGENT_ENV=("-e" "SSH_AUTH_SOCK=/ssh-agent")
+  echo "Forwarding SSH agent:  $SSH_AUTH_SOCK -> /ssh-agent" >&2
+  MOUNTS_CONTENT+="$SSH_AUTH_SOCK -> /ssh-agent (SSH agent socket)\n"
+else
+  echo "Info: SSH_AUTH_SOCK unset or not a socket; SSH agent not forwarded" >&2
+fi
+
 if [[ $MOUNT_ERRORS -gt 0 ]]; then
   echo "Warning: $MOUNT_ERRORS mount(s) skipped due to permission issues" >&2
 fi
@@ -315,6 +343,9 @@ podman run -it --rm \
   "${GROUP_ADD_FLAG[@]}" \
   -v "$(pwd):/${DIR_NAME}" \
   "${DOTFILES_MOUNT[@]}" \
+  "${SSH_MOUNT[@]}" \
+  "${SSH_AGENT_MOUNT[@]}" \
+  "${SSH_AGENT_ENV[@]}" \
   "${CLAUDE_MOUNT[@]}" \
   "${OPENCODE_MOUNT[@]}" \
   "${PI_MOUNT[@]}" \

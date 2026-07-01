@@ -287,6 +287,31 @@ else
   echo "Info: npm cache mount unavailable, npx will be slower on first use" >&2
 fi
 
+# Forward the host SSH agent so git SSH operations use the host's already-unlocked
+# keys. The on-disk keys in ~/.ssh are passphrase-encrypted and the container has no
+# agent of its own; --userns=keep-id preserves the host UID so the socket is accessible.
+SSH_AGENT_MOUNT=()
+SSH_AGENT_ENV=()
+if [[ -n "$SSH_AUTH_SOCK" && -S "$SSH_AUTH_SOCK" ]]; then
+  SSH_AGENT_MOUNT=("-v" "$SSH_AUTH_SOCK:/ssh-agent")
+  SSH_AGENT_ENV=("-e" "SSH_AUTH_SOCK=/ssh-agent")
+  echo "Forwarding SSH agent:  $SSH_AUTH_SOCK -> /ssh-agent" >&2
+  MOUNTS_CONTENT+="$SSH_AUTH_SOCK -> /ssh-agent (SSH agent socket)\n"
+  # A forwarded socket with no keys loaded fails identically to no socket at all,
+  # so surface the empty-agent case here rather than letting git fail cryptically later.
+  if command -v ssh-add >/dev/null 2>&1 && ! ssh-add -l >/dev/null 2>&1; then
+    echo "WARNING: SSH agent is forwarded but has NO keys loaded." >&2
+    echo "         git push over SSH will fail with 'Permission denied (publickey)'." >&2
+    echo "         Fix on the host: ssh-add ~/.ssh/id_ed25519   (then relaunch)" >&2
+  fi
+else
+  echo "WARNING: SSH agent NOT forwarded -- SSH_AUTH_SOCK is unset or not a socket." >&2
+  echo "         The mounted ~/.ssh keys are passphrase-encrypted and unusable without" >&2
+  echo "         an agent, so git push over SSH will fail inside the container." >&2
+  echo "         Fix on the host before launching:" >&2
+  echo "           eval \"\$(ssh-agent -s)\" && ssh-add ~/.ssh/id_ed25519" >&2
+fi
+
 if [[ $MOUNT_ERRORS -gt 0 ]]; then
   echo "Warning: $MOUNT_ERRORS mount(s) skipped due to permission issues" >&2
 fi
@@ -342,6 +367,8 @@ podman run -it --rm \
   -v "$(pwd):/${DIR_NAME}" \
   "${DOTFILES_MOUNT[@]}" \
   "${SSH_MOUNT[@]}" \
+  "${SSH_AGENT_MOUNT[@]}" \
+  "${SSH_AGENT_ENV[@]}" \
   "${CLAUDE_MOUNT[@]}" \
   "${OPENCODE_MOUNT[@]}" \
   "${PI_MOUNT[@]}" \
